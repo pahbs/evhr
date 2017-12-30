@@ -1,3 +1,3 @@
 # evhr
-EVHR AIST Project: DEM Workflow
+Enhanced Very-High Resolution (EVHR) Data Processing: DEM Workflow
 
