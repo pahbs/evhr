@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-# Stereo, point2dem, hillshades, & orthoimages for individual stereopairs on DISCOVER & ADAPT
+# DEM Workflow: wv_correct, mosaic, mapproject, stereo, point2dem, hillshades, & orthoimages for individual stereopairs on DISCOVER & ADAPT
+# paul montesano, david shean, maggie wooten, christopher neigh
 #
 # pairname=WV01_20140603_102001002F42A400_1020010031EBEF00
 # example of call on DISCOVER:
@@ -8,23 +9,17 @@
 # example of call on ADAPT:
 #     dg_stereo.sh $pairname true
 #       or
-#     dg_stereo.sh $pairname true $nodeslist /att/pubrepo/DEM/hrsi_dsm "$$crop" true 2 3
-#       or
 #     pupsh "hostname ~ 'ecotone16'" "dg_stereo_par.sh /att/pubrepo/DEM/hrsi_dsm/list_pairname"
 #
-# Dependencies for this script that wants python scripts to be sitting in your path dir:
-#   utm_proj_select.py		my edit from pygeotools; run this: pip install --user pygeotools
+# Dependencies (sh & python scripts run as cmd line tools):
+#   query_db_catid.py		script that returns the ADAPT dir of images of given catid
+#   proj_select.py          get the best prj used to mapproject input
+#   utm_proj_select.py		force get UTM prj for DEM and ortho; edit to script from pygeotools; run this: pip install --user pygeotools
 #   color_hs.py   		    run this: pip install --user imview
-#   query_db_catid.py		my script that returns the ADAPT dir of images of given catid
 #   ntfmos.sh
-#
-# Hardcoded for ADAPT:
-# The 'nodelist' txt file specifies your available VMs (nodes). It is only needed if you want to run parallel_stereo
-# eg:
-# ecotone01
-# ecotone02
-# ecotone03
-# Note: 'nodelist' not used for DISCOVER, since parallel_stereo only called on ADAPT
+#   dg_stereo_int.py
+# Note: on ADAPT, will run parallel_stereo on launch node only, thus, no nodeslist needed.
+
 
 t_start=$(date +%s)
 
@@ -34,44 +29,52 @@ function gettag() {
     echo $(grep "$tag" $xml | awk -F'[<>]' '{print $3}')
 }
 
-# Args: feed in pairname, split to get catids, return ADAPT dir from query of each catid & copy symlinks to out_root/pairname, feed out_root/pairname into ntfmos.sh
+#Hardcoded Args
+run_stereo=true
+rmfiles=true
+tile_size=2048
+MAP=true
+TEST=true
 
 # Required Args
-pairname=$1
-subpixk=5
-ADAPT=$2   #true or false
-#NBDIR=$3
+pairname="$1"
+ADAPT="$2"    #true or false
+subpixk=$3
+testname="$4"
+
+# Optional Args (stereogrammetry testing)
+#crop="5000 5000 4096 4096"
+crop=$5
+sgm=$6      #true or false
+sa=$7		#if sgm is true, then use 1 for sgm or 2 for mgm
+cm=$8       #cost mode for stereo
+
+# North America boreal
+rpcdem=/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/refdem/ASTGTM2_N40-79W.vrt
+# Eurasian boreal
+rpcdem=/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/refdem/ASTGTM2_N40-79E.vrt
 
 if [ "$ADAPT" = true ]; then
     out_root=/att/pubrepo/DEM/hrsi_dsm
-    #if [ "$NBDIR" = true ]; then
-    out_root=/att/nobackup/pmontesa/outASP
-    #fi
+    if [ "$TEST" = true ]; then
+        out_root=/att/nobackup/pmontesa/outASP_${testname}
+    fi
 else
     out_root=/discover/nobackup/projects/boreal_nga/ASP
 fi
 
-# Hardcoded vars
-nodes=~/code/nodes_all
-
-run_stereo=true
-rmfiles=true
-compress=false
-
 left_catid="$(echo $pairname | awk -F '_' '{print $3}')"
 right_catid="$(echo $pairname | awk -F '_' '{print $4}')"
-
-# Optional Args are for stereogrammetry. Likely not needed.
-crop="$3"
-sgm=$4      #true or false
-sa=$5		#if sgm is true, then use 1 for sgm or 2 for mgm
-cm=$6       #cost mode for stereo
 
 if [ -z "$sgm" ]; then
 	sgm=false
 fi
 
 ncpu=$(cat /proc/cpuinfo | egrep "core id|physical id" | tr -d "\n" | sed s/physical/\\nphysical/g | grep -v ^$ | sort | uniq | wc -l)
+
+gdal_opts="-co TILED=YES -co COMPRESS=LZW -co BIGTIFF=YES" 
+gdal_opts+=" -co BLOCKXSIZE=256 -co BLOCKYSIZE=256"
+#gdal_opts+=" -co NUM_THREADS=$ncpu"
 
 parallel_point2dem=false
 if [ "$ncpu" -gt "12" ] ; then
@@ -83,7 +86,6 @@ out=${out_root}/${pairname}/out
 stereo_opts=''
 stereo_args=''
 sgm_opts=''
-tile_size=2048
 
 if [ -e ${out}-strip-PC.tif ]; then
 	mv ${out}-strip-PC.tif ${out}-PC.tif
@@ -137,43 +139,112 @@ if [ ! -e "${out}-PC.tif" ] ; then
     ntfmos.sh ${out_root}/${pairname}
 fi
 
-if [ ! -e $in_left ]; then
-    in_proj_xml=$(echo $(ls ${out_root}/${pairname}/*P1BS*.xml | head -1))
+if [ ! -e $in_left ] && [ ! -e ${in_left%.*}.xml ]; then
+    in_left_xml=$(echo $(ls ${out_root}/${pairname}/*${left_catid}*P1BS*.xml | grep -v aux | head -1))
 else
-    in_proj_xml=${in_left%.*}.xml
+    in_left_xml=${in_left%.*}.xml
+fi
+if [ ! -e $in_right ] && [ ! -e ${in_right%.*}.xml ]; then
+    in_right_xml=$(echo $(ls ${out_root}/${pairname}/*${right_catid}*P1BS*.xml | grep -v aux | head -1))
+else
+    in_right_xml=${in_right%.*}.xml
 fi
 
-echo; echo "Get proj and native_res from ${in_proj_xml} ..."
-# Get UTM proj from XML
+echo; echo "Determine projection and native resolution ..."
+# Get proj from XML
 # DEPENDENCY! run this to install library --> pip install --user pygeotools
-proj=$(utm_proj_select.py ${in_proj_xml})
-
-if grep -q MEANPRODUCTGSD $in_proj_xml ; then
-    native_res=$(printf '%.2f' $(gettag $in_proj_xml 'MEANPRODUCTGSD'))
-else
-    native_res=$(printf '%.2f' $(gettag $in_proj_xml 'MEANCOLLECTEDGSD'))
-fi
-
+proj_mapprj=$(proj_select.py ${in_left_xml})
+proj=$(utm_proj_select.py ${in_left_xml})
 echo "Projection: ${proj}"
-echo "Native res: ${native_res}"
+
+if grep -q MEANPRODUCTGSD $in_left_xml ; then
+    res1=$(printf '%.3f' $(gettag $in_left_xml 'MEANPRODUCTGSD'))
+else
+    res1=$(printf '%.3f' $(gettag $in_left_xml 'MEANCOLLECTEDGSD'))
+fi
+if grep -q MEANPRODUCTGSD $in_right_xml ; then
+    res2=$(printf '%.3f' $(gettag $in_right_xml 'MEANPRODUCTGSD'))
+else
+    res2=$(printf '%.3f' $(gettag $in_right_xml 'MEANCOLLECTEDGSD'))
+fi
+echo "GSD resolutions"
+echo "${left_catid}: $res1 GSD"
+echo "${right_catid}: $res2 GSD"
+
+if [ $(echo "a=($res1 < $res2); a" | bc -l) -eq 1 ] ; then
+    native_res=$res1
+    echo "Native res is from $left_catid : ${native_res}"
+else
+    native_res=$res2
+    echo "Native res is from $right_catid : ${native_res}"
+fi
 
 if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     stereo_opts+="-t dg"
-    stereo_opts+=" --alignment-method AffineEpipolar"
-    stereo_opts+=" --corr-timeout 1660"
+    
+    #Map mosaiced input images using ASP mapproject
+    if [ "$MAP" = true ] ; then
+        map_opts="--threads $ncpu -t rpc --nodata-value 0 --t_srs \"$proj_mapprj\""
+        
+        if [[ -n $native_res ]]; then
+            map_opts+=" --tr $native_res"
+            outext="${outext}_${native_res}m"
+        fi
+        for id in $imgL $imgR; do
+            if [ ! -e ${id}${outext}.xml ] ; then
+                ln -sv ${id}.r100.xml ${id}${outext}.xml
+            fi
+        done
+        echo
+        # Crop gives x & y offsets and sizes, so the if/else below shouldnt apply.
+        # Some pairs need to be mapprj'd first, before cropping (eg, when one is mirrored about x&y relatie to the other) so that the crop box will cover the same geo extent
+        #Determine stereo intersection bbox up front from xml files
+        #if [[ -z "$crop" ]] ; then
+        echo "Computing intersection extent:"
+        #Want to compute intersection with rpcdem as well
+        map_extent=$(dg_stereo_int.py $in_left_xml $in_right_xml "$proj_mapprj")
+        #else
+        #    echo "Using user-specified crop extent:"
+        #    map_extent=$crop
+        #    unset crop
+        #fi
+
+        echo $map_extent
+        echo
+        for in_img in $in_left $in_right; do
+            ln -sv ${in_img%.tif}.xml ${in_img%.tif}${outext}.xml
+            map_arg="--t_projwin $map_extent $rpcdem ${in_img} ${in_img%.tif}${outext}.xml ${in_img%.tif}${outext}.tif"
+            if [ ! -e ${in_img%.tif}${outext}.tif ]; then
+                echo; date; echo;
+                echo mapproject $map_opts $map_arg
+                eval time mapproject $map_opts $map_arg
+            fi
+        done
+
+        stereo_args+=" $rpcdem"
+        stereo_opts+=" --alignment-method None"
+
+    #Don't map inputs, let ASP do the alignment
+    else
+        echo; date; echo;
+        outext=""
+        stereo_opts+=" --alignment-method AffineEpipolar"
+    fi
+
+    stereo_opts+=" --corr-timeout 300"
     stereo_opts+=" --subpixel-kernel $subpixk $subpixk"
-    stereo_opts+=" --fill-holes-max-size 15"
-    stereo_opts+=" --erode-max-size 100"
+    #stereo_opts+=" --fill-holes-max-size 15"
+    #stereo_opts+=" --erode-max-size 100"
     stereo_opts+=" --individually-normalize"
     stereo_opts+=" --tif-compress LZW"
     #stereo_opts+=" --job-size-w $tile_size --job-size-h $tile_size"
 
     if [ ! -z "$crop" ]; then
-        stereo_opts+=" $crop"
+        stereo_opts+=" --left-image-crop-win $crop"
     fi
 
-    stereo_args+=" $in_left $in_right ${in_left%.*}.xml ${in_right%.*}.xml"
-    stereo_args+=" ${out}"
+    # Done like this so, if present, rpcdem is last
+    stereo_args=" ${in_left%.*}${outext}.tif ${in_right%.*}${outext}.tif ${in_left%.*}${outext}.xml ${in_right%.*}${outext}.xml ${out} $stereo_args"
 
     if [ ! -z "$sgm" ] && [ "$sgm" = true ] ; then
         # SGM stereo runs. Not applicable for our DISCOVER processing
@@ -204,10 +275,10 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         par_opts="--threads-singleprocess $ncpu"
         par_opts+=" --processes $ncpu"
         par_opts+=" --threads-multiprocess 1"
-        pc_merge_opts="--threads $ncpu --tile-size=$tile_size,$tile_size -o ${out}-PC.tif"
-        if [ ! -z "$nodes" ]; then
-            par_opts+=" --nodes-list $nodes"
-        fi
+        #pc_merge_opts="--threads $ncpu --tile-size=$tile_size,$tile_size -o ${out}-PC.tif"
+        #if [ ! -z "$nodes" ]; then
+        #    par_opts+=" --nodes-list $nodes"
+        #fi
 
         # DISCOVER processing needs these.
         stereo_opts+=" --corr-kernel 21 21"
@@ -217,11 +288,12 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
 
         if [ "$run_stereo" = true ] ; then
             if [ "$ADAPT" = true ] ; then
-                echo; echo "nice -n5 parallel_stereo $par_opts $stereo_opts $stereo_args"; echo
-                eval time nice -n5 parallel_stereo -e $e $par_opts $stereo_opts $stereo_args
+                echo; echo $stereo_args ; echo
+                echo; echo "parallel_stereo $par_opts $stereo_opts $stereo_args"; echo
+                eval time parallel_stereo -e $e $par_opts $stereo_opts $stereo_args
                 #eval time pc_merge $pc_merge_opts ${out}*/*PC.tif
-                echo; echo "Removing intermediate dirs & logs..."
-                #rm -rf ${out}*/
+
+                echo; echo "Removing intermediate logs..."
                 rm ${out}-log-stereo_parse*.txt
             else
                 echo; echo "stereo $stereo_opts $stereo_args"; echo
@@ -234,7 +306,14 @@ if [ ! -e "${out}-PC.tif" ] ; then
     echo; echo "Stereogrammetry unsuccessful. Exiting."
     exit 1
 else
-    echo; echo "Stereo point-cloud file exists. Check for DEMs."
+    echo; echo "Stereo point-cloud file exists."
+    if [ "$ADAPT" = true ] ; then
+        echo; echo "Convert PC.tif from virtual to real"; echo
+        eval time gdal_translate $gdal_opts ${out}-PC.tif ${out}-PC_full.tif
+        mv ${out}-PC_full.tif ${out}-PC.tif
+        echo; echo "Removing intermediate parallel_stereo dirs"; echo
+        rm -rf ${out}*/
+    fi
 
     stats_res=24
     mid_res=4
@@ -254,6 +333,7 @@ else
 
     for dem_res in $stats_res $mid_res $fine_res ; do
         dem_opts="$base_dem_opts"
+        echo; echo "Check for dems..."; echo
         if [ ! -e ${out}-DEM_${dem_res}m.tif ]; then
             echo "Creating DEM at ${dem_res}m ..."
             dem_opts+=" --nodata-value $dem_ndv"
@@ -280,14 +360,15 @@ else
     done
 
     if [[ ! -z $cmd_list ]] ; then
+ 
        	if (( $ncpu > 15 )) ; then
-            njobs=3
+            njobs=4
         else
             njobs=2
         fi
         eval parallel -verbose -j $njobs ::: $cmd_list
     fi
-
+     
     # Color Shaded Relief Generation
     mean=$(gdalinfo -stats $stats_dem | grep MEAN | awk -F '=' '{print $2}')
     stddev=$(gdalinfo -stats $stats_dem | grep STDDEV | awk -F '=' '{print $2}')
@@ -322,13 +403,14 @@ else
     # else no mosiacs done, in_left is an xml used for proj and native_res; need indiv scenes indiv ortho'd then dem_mosaic
     if [ ! -e ${out_ortho} ] ; then
         if [ -e ${in_left} ] && [ -e ${in_right} ] ]; then
-
+            
             echo; echo "Mapproject at ${res}m ${in_left} onto ${stats_dem}"; echo
             map_opts=" --tr $native_res"
             map_args="$stats_dem $in_left ${in_left%.*}.xml ${out_ortho}"
             time mapproject $map_opts $map_args
 
         else
+            # This case exists to handle pairname dirs that dont have *.r100.tif; so, for each ntf run mapprj then use dem_mosaic
             echo; echo "Mapproject each indiv NTF onto ${stats_dem}"; echo
             echo; echo "Get ADAPT dir with imagery to mapproject"; echo
 
