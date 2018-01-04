@@ -39,20 +39,26 @@ TEST=true
 # Required Args
 pairname="$1"
 ADAPT="$2"    #true or false
-subpixk=$3
-testname="$4"
 
-# Optional Args (stereogrammetry testing)
-#crop="5000 5000 4096 4096"
-crop=$5
-sgm=$6      #true or false
-sa=$7		#if sgm is true, then use 1 for sgm or 2 for mgm
-cm=$8       #cost mode for stereo
+if [ "$TEST" = true ]; then
+    subpixk=$3
+    testname="$4"
+    rpcdem=$5
+    # Optional Args (stereogrammetry testing)
+    #crop="5000 5000 2048 2048"
+    crop=$6
+    sgm=$7      #true or false
+    sa=$8		#if sgm is true, then use 1 for sgm or 2 for mgm
+    cm=$9       #cost mode for stereo
+else
+    subpixk=7
+    rpcdem=""
+fi
 
 # North America boreal
-rpcdem=/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/refdem/ASTGTM2_N40-79W.vrt
+#rpcdem=/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/refdem/ASTGTM2_N40-79W.vrt
 # Eurasian boreal
-rpcdem=/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/refdem/ASTGTM2_N40-79E.vrt
+#rpcdem=/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/refdem/ASTGTM2_N40-79E.vrt
 
 if [ "$ADAPT" = true ]; then
     out_root=/att/pubrepo/DEM/hrsi_dsm
@@ -150,7 +156,7 @@ else
     in_right_xml=${in_right%.*}.xml
 fi
 
-echo; echo "Determine projection and native resolution ..."
+echo; echo "Determine output UTM prj and native resolution ..."
 # Get proj from XML
 # DEPENDENCY! run this to install library --> pip install --user pygeotools
 proj_mapprj=$(proj_select.py ${in_left_xml})
@@ -200,7 +206,9 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         # Some pairs need to be mapprj'd first, before cropping (eg, when one is mirrored about x&y relatie to the other) so that the crop box will cover the same geo extent
         #Determine stereo intersection bbox up front from xml files
         #if [[ -z "$crop" ]] ; then
-        echo "Computing intersection extent:"
+        echo "Projection used for initial alignment of stereopairs:"
+        echo $proj_mapprj
+        echo "Computing intersection extent in projected coordinates:"
         #Want to compute intersection with rpcdem as well
         map_extent=$(dg_stereo_int.py $in_left_xml $in_right_xml "$proj_mapprj")
         #else
@@ -220,8 +228,13 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
                 eval time mapproject $map_opts $map_arg
             fi
         done
-
-        stereo_args+=" $rpcdem"
+        echo; echo "Clip the VRT rpcdem with the mapprojected extent..."; echo
+        warptool.py -tr 'last' -te 'first' ${in_img%.tif}${outext}.tif $rpcdem -outdir ${out_root}/${pairname}
+        
+        # Rename rpcdem to the clipped file
+        rpcdem=${out_root}/${pairname}/$(basename ${rpcdem%.*})_warp.tif
+        
+        stereo_args+="$rpcdem"
         stereo_opts+=" --alignment-method None"
 
     #Don't map inputs, let ASP do the alignment
@@ -244,7 +257,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     fi
 
     # Done like this so, if present, rpcdem is last
-    stereo_args=" ${in_left%.*}${outext}.tif ${in_right%.*}${outext}.tif ${in_left%.*}${outext}.xml ${in_right%.*}${outext}.xml ${out} $stereo_args"
+    stereo_args="${in_left%.*}${outext}.tif ${in_right%.*}${outext}.tif ${in_left%.*}${outext}.xml ${in_right%.*}${outext}.xml ${out} $stereo_args"
 
     if [ ! -z "$sgm" ] && [ "$sgm" = true ] ; then
         # SGM stereo runs. Not applicable for our DISCOVER processing
@@ -291,7 +304,6 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
                 echo; echo $stereo_args ; echo
                 echo; echo "parallel_stereo $par_opts $stereo_opts $stereo_args"; echo
                 eval time parallel_stereo -e $e $par_opts $stereo_opts $stereo_args
-                #eval time pc_merge $pc_merge_opts ${out}*/*PC.tif
 
                 echo; echo "Removing intermediate logs..."
                 rm ${out}-log-stereo_parse*.txt
@@ -307,7 +319,7 @@ if [ ! -e "${out}-PC.tif" ] ; then
     exit 1
 else
     echo; echo "Stereo point-cloud file exists."
-    if [ "$ADAPT" = true ] ; then
+    if [ "$ADAPT" = true ] && gdalinfo ${out}-PC.tif | grep -q VRT ; then
         echo; echo "Convert PC.tif from virtual to real"; echo
         eval time gdal_translate $gdal_opts ${out}-PC.tif ${out}-PC_full.tif
         mv ${out}-PC_full.tif ${out}-PC.tif
@@ -480,6 +492,7 @@ else
         #    rm ${out_root}/${pairname}/*.r100.tif
         #fi
         rm ${out_root}/${pairname}/out.*
+        rm ${out_root}/${pairname}/*warp.tif
         for i in sub.tif Mask.tif .match .exr center.txt ramp.txt; do
             rm -v ${out}-*${i}
         done
