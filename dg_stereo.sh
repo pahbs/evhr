@@ -41,6 +41,10 @@ pairname="$1"
 ADAPT="$2"    #true or false
 MAP="$3"
 
+if [ "$ADAPT" = false ]; then
+    $TEST=false
+fi
+
 if [ "$TEST" = true ]; then
     RUN_PSTEREO="$4"
     subpixk=$5
@@ -69,7 +73,8 @@ if [ "$ADAPT" = true ]; then
         out_root=/att/nobackup/pmontesa/outASP_${testname}
     fi
 else
-    out_root=/discover/nobackup/projects/boreal_nga/ASP
+    out_root=$4 # output directory is 4th input if on DISCOVER
+    #out_root=/discover/nobackup/projects/boreal_nga/ASP/batchName
 fi
 
 left_catid="$(echo $pairname | awk -F '_' '{print $3}')"
