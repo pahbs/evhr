@@ -15,9 +15,10 @@
 #   query_db_catid.py		script that returns the ADAPT dir of images of given catid
 #   proj_select.py          get the best prj used to mapproject input
 #   utm_proj_select.py		force get UTM prj for DEM and ortho; edit to script from pygeotools; run this: pip install --user pygeotools
-#   color_hs.py   		    run this: pip install --user imview
+#   color_hs.py   		    
 #   ntfmos.sh
 #   dg_stereo_int.py
+#   warptool.py
 # Note: on ADAPT, will run parallel_stereo on launch node only, thus, no nodeslist needed.
 
 
@@ -30,29 +31,31 @@ function gettag() {
 }
 
 #Hardcoded Args
-run_stereo=true
 rmfiles=true
 tile_size=2048
-MAP=true
+
 TEST=true
 
 # Required Args
 pairname="$1"
 ADAPT="$2"    #true or false
+MAP="$3"
 
 if [ "$TEST" = true ]; then
-    subpixk=$3
-    testname="$4"
-    rpcdem=$5
+    RUN_PSTEREO="$4"
+    subpixk=$5
+    testname="$6"
+    rpcdem=$7
     # Optional Args (stereogrammetry testing)
     #crop="5000 5000 2048 2048"
-    crop=$6
-    sgm=$7      #true or false
-    sa=$8		#if sgm is true, then use 1 for sgm or 2 for mgm
-    cm=$9       #cost mode for stereo
+    crop=$8
+    sgm=$9     #true or false
+    sa=$10		#if sgm is true, then use 1 for sgm or 2 for mgm
+    cm=$11       #cost mode for stereo
 else
     subpixk=7
     rpcdem=""
+    RUN_PSTEREO=true
 fi
 
 # North America boreal
@@ -64,6 +67,7 @@ if [ "$ADAPT" = true ]; then
     out_root=/att/pubrepo/DEM/hrsi_dsm
     if [ "$TEST" = true ]; then
         out_root=/att/nobackup/pmontesa/outASP_${testname}
+        
     fi
 else
     out_root=/discover/nobackup/projects/boreal_nga/ASP
@@ -123,7 +127,7 @@ in_right=${out_root}/${pairname}/${right_catid}.r100.tif
 ortho_ext=_ortho.tif
 out_ortho=${out_root}/${pairname}/${pairname}${ortho_ext}
 
-if [ ! -e $in_left ] || [ ! -e $in_right  ] ; then
+if [ ! -e $in_left ] || [ ! -e $in_right  ] && [ "$ADAPT" = true ] ; then
     mkdir -p ${out_root}/${pairname}
     if [ ! -e ${out_ortho} ] ; then
         for catid in $left_catid $right_catid ; do
@@ -134,9 +138,9 @@ if [ ! -e $in_left ] || [ ! -e $in_right  ] ; then
         done
 
         # Do the ADAPT db querying in parallel
-        if [ "$ADAPT" = true ] ; then
-            eval parallel --delay 2 -verbose -j 2 ::: $cmd_list
-        fi
+        #if [ "$ADAPT" = true ] ; then
+        eval parallel --delay 2 -verbose -j 2 ::: $cmd_list
+        #fi
     fi
 fi
 
@@ -158,7 +162,6 @@ fi
 
 echo; echo "Determine output UTM prj and native resolution ..."
 # Get proj from XML
-# DEPENDENCY! run this to install library --> pip install --user pygeotools
 proj_mapprj=$(proj_select.py ${in_left_xml})
 proj=$(utm_proj_select.py ${in_left_xml})
 echo "Projection: ${proj}"
@@ -228,6 +231,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
                 eval time mapproject $map_opts $map_arg
             fi
         done
+
         echo; echo "Clip the VRT rpcdem with the mapprojected extent..."; echo
         warptool.py -tr 'last' -te 'first' ${in_img%.tif}${outext}.tif $rpcdem -outdir ${out_root}/${pairname}
         
@@ -299,18 +303,15 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         stereo_opts+=" --filter-mode 1"
         stereo_opts+=" --cost-mode 2"
 
-        if [ "$run_stereo" = true ] ; then
-            if [ "$ADAPT" = true ] ; then
-                echo; echo $stereo_args ; echo
-                echo; echo "parallel_stereo $par_opts $stereo_opts $stereo_args"; echo
-                eval time parallel_stereo -e $e $par_opts $stereo_opts $stereo_args
-
-                echo; echo "Removing intermediate logs..."
-                rm ${out}-log-stereo_parse*.txt
-            else
-                echo; echo "stereo $stereo_opts $stereo_args"; echo
-                eval time stereo -e $e $stereo_opts $stereo_args
-            fi
+        if [ "$RUN_PSTEREO" = true ] && [ "$ADAPT" = true ] ; then
+            echo; echo $stereo_args ; echo
+            echo; echo "parallel_stereo $par_opts $stereo_opts $stereo_args"; echo
+            eval time parallel_stereo -e $e $par_opts $stereo_opts $stereo_args
+            echo; echo "Removing intermediate logs..."
+            rm ${out}-log-stereo_parse*.txt
+        else
+            echo; echo "stereo $stereo_opts $stereo_args"; echo
+            eval time stereo -e $e $stereo_opts $stereo_args
         fi
     fi
 fi
@@ -394,7 +395,7 @@ else
     	cmd=''
         if [ ! -e ${dem%.*}_color_hs.tif.ovr ]; then
             rm -f ${dem%.*}_color_hs.tif
-		    # DEPENDENCY ---> pip install --user imview
+		    
     	    cmd+="time color_hs.py $dem -clim $min $max -hs_overlay -alpha .8; "
     	    cmd_list+=\ \'$cmd\'
         fi
