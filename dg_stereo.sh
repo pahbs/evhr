@@ -15,7 +15,7 @@
 #   query_db_catid.py		script that returns the ADAPT dir of images of given catid
 #   proj_select.py          get the best prj used to mapproject input
 #   utm_proj_select.py		force get UTM prj for DEM and ortho; edit to script from pygeotools; run this: pip install --user pygeotools
-#   color_hs.py   		    
+#   color_hs.py
 #   ntfmos.sh
 #   dg_stereo_int.py
 #   warptool.py
@@ -67,7 +67,6 @@ if [ "$ADAPT" = true ]; then
     out_root=/att/pubrepo/DEM/hrsi_dsm
     if [ "$TEST" = true ]; then
         out_root=/att/nobackup/pmontesa/outASP_${testname}
-        
     fi
 else
     out_root=/discover/nobackup/projects/boreal_nga/ASP
@@ -82,7 +81,7 @@ fi
 
 ncpu=$(cat /proc/cpuinfo | egrep "core id|physical id" | tr -d "\n" | sed s/physical/\\nphysical/g | grep -v ^$ | sort | uniq | wc -l)
 
-gdal_opts="-co TILED=YES -co COMPRESS=LZW -co BIGTIFF=YES" 
+gdal_opts="-co TILED=YES -co COMPRESS=LZW -co BIGTIFF=YES"
 gdal_opts+=" -co BLOCKXSIZE=256 -co BLOCKYSIZE=256"
 #gdal_opts+=" -co NUM_THREADS=$ncpu"
 
@@ -127,20 +126,23 @@ in_right=${out_root}/${pairname}/${right_catid}.r100.tif
 ortho_ext=_ortho.tif
 out_ortho=${out_root}/${pairname}/${pairname}${ortho_ext}
 
-if [ ! -e $in_left ] || [ ! -e $in_right  ] && [ "$ADAPT" = true ] ; then
+if [ ! -e $in_left ] || [ ! -e $in_right  ] ; then
     mkdir -p ${out_root}/${pairname}
     if [ ! -e ${out_ortho} ] ; then
-        for catid in $left_catid $right_catid ; do
-            cmd=''
-            echo; echo "Querying ngadb, putting the symlinks catid ${catid} in ${out_root}/${pairname}"; echo
-            cmd+="time query_db_catid.py $catid -out_dir ${out_root}/${pairname} ; "
-            cmd_list+=\ \'$cmd\'
-        done
+        if [ "$ADAPT" = true ] ; then
+            for catid in $left_catid $right_catid ; do
+                cmd=''
+                echo; echo "Querying ngadb, putting the symlinks catid ${catid} in ${out_root}/${pairname}"; echo
+                cmd+="time query_db_catid.py $catid -out_dir ${out_root}/${pairname} ; "
+                cmd_list+=\ \'$cmd\'
+            done
 
-        # Do the ADAPT db querying in parallel
-        #if [ "$ADAPT" = true ] ; then
-        eval parallel --delay 2 -verbose -j 2 ::: $cmd_list
-        #fi
+            # Do the ADAPT db querying in parallel
+        
+            eval parallel --delay 2 -verbose -j 2 ::: $cmd_list
+        else
+            echo; echo "Workflow not running on ADAPT, querying for input already done."; echo
+        fi
     fi
 fi
 
@@ -190,11 +192,11 @@ fi
 
 if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     stereo_opts+="-t dg"
-    
+
     #Map mosaiced input images using ASP mapproject
     if [ "$MAP" = true ] ; then
         map_opts="--threads $ncpu -t rpc --nodata-value 0 --t_srs \"$proj_mapprj\""
-        
+
         if [[ -n $native_res ]]; then
             map_opts+=" --tr $native_res"
             outext="${outext}_${native_res}m"
@@ -234,10 +236,10 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
 
         echo; echo "Clip the VRT rpcdem with the mapprojected extent..."; echo
         warptool.py -tr 'last' -te 'first' ${in_img%.tif}${outext}.tif $rpcdem -outdir ${out_root}/${pairname}
-        
+
         # Rename rpcdem to the clipped file
         rpcdem=${out_root}/${pairname}/$(basename ${rpcdem%.*})_warp.tif
-        
+
         stereo_args+="$rpcdem"
         stereo_opts+=" --alignment-method None"
 
@@ -292,10 +294,6 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         par_opts="--threads-singleprocess $ncpu"
         par_opts+=" --processes $ncpu"
         par_opts+=" --threads-multiprocess 1"
-        #pc_merge_opts="--threads $ncpu --tile-size=$tile_size,$tile_size -o ${out}-PC.tif"
-        #if [ ! -z "$nodes" ]; then
-        #    par_opts+=" --nodes-list $nodes"
-        #fi
 
         # DISCOVER processing needs these.
         stereo_opts+=" --corr-kernel 21 21"
@@ -373,7 +371,7 @@ else
     done
 
     if [[ ! -z $cmd_list ]] ; then
- 
+
        	if (( $ncpu > 15 )) ; then
             njobs=4
         else
@@ -381,7 +379,7 @@ else
         fi
         eval parallel -verbose -j $njobs ::: $cmd_list
     fi
-     
+
     # Color Shaded Relief Generation
     mean=$(gdalinfo -stats $stats_dem | grep MEAN | awk -F '=' '{print $2}')
     stddev=$(gdalinfo -stats $stats_dem | grep STDDEV | awk -F '=' '{print $2}')
@@ -391,11 +389,11 @@ else
 
     cmd_list=''
     for dem in $stats_dem $mid_dem $fine_dem ; do
-    	
+
     	cmd=''
         if [ ! -e ${dem%.*}_color_hs.tif.ovr ]; then
             rm -f ${dem%.*}_color_hs.tif
-		    
+
     	    cmd+="time color_hs.py $dem -clim $min $max -hs_overlay -alpha .8; "
     	    cmd_list+=\ \'$cmd\'
         fi
@@ -416,7 +414,7 @@ else
     # else no mosiacs done, in_left is an xml used for proj and native_res; need indiv scenes indiv ortho'd then dem_mosaic
     if [ ! -e ${out_ortho} ] ; then
         if [ -e ${in_left} ] && [ -e ${in_right} ] ]; then
-            
+
             echo; echo "Mapproject at ${res}m ${in_left} onto ${stats_dem}"; echo
             map_opts=" --tr $native_res"
             map_args="$stats_dem $in_left ${in_left%.*}.xml ${out_ortho}"
@@ -466,7 +464,7 @@ else
         for i in $stats_dem $mid_dem $fine_dem ; do
             dembase=$(basename ${i})
             ln -sfv ${i} ${out_root}/_dem/${pairname}_${dembase:4}
-            
+
             if [ -e ${dembase%.*}_color_hs.tif ] ; then
                 colorbase=${dembase%.*}_color_hs.tif
                 ln -sfv ${i%.*}_color_hs.tif ${out_root}/_color_hs/${pairname}_${colorbase:4}
