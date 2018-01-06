@@ -31,18 +31,10 @@ def find_elapsed_time(start, end): # take two timer() objects and find elapsed t
 
 
 def run_asp(
-    pairname, #n
-    header, #n will not need this
-    imageDir,     ##  ='/att/gpfsfs/userfs02/ppl/pmontesa/inASP/
-    prj,
-    utm_zone,
-    doP2D,
-    rp, # reduce percent value (100 when making real runs)
+    pairname,
+    batchID,
+    ASPdir,
     preLogTextFile,
-    batchID, # file arg to be written to list
-    catIDlist, # list as string
-    pIDlist, # list as string
-    imageDate, # imageDate is a string in the format YYYY-mm-dd. to convert to datetime object: datetime.strptime(imageDate, "%Y-%m-%d")
     stereoDef='/discover/nobackup/projects/boreal_nga/code/stereo.default',
     searchExtList=['.ntf','.tif','.NTF','.TIF']
     ):
@@ -53,8 +45,8 @@ def run_asp(
     # imageDir is /discover/.../ASP/batch/pairname -- imageDir is now the outDir AND inDir
     # batchDir is /discover/.../ASP/batch
     # ddir is     /discover/.../ASP/
-    batchDir = os.path.split(imageDir)[0]
-    ASPdir = os.path.split(batchDir)[0] # strip off the pairname subdir to get ASPdir '/discover/nobackup/projects/boreal_nga/ASP/'
+    batchDir = os.path.join(ASPdir, batchID)
+    imageDir = os.path.join(batchDir, pairname)
     ddir = os.path.split(ASPdir)[0] # strip off ASP to get boreal_nga
     stereoCode = os.path.join(ddir, 'code', 'evhr', 'dg_stereo.sh') # now strip off ASP (outdir name) and get code dir
     start_main = timer()
