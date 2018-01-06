@@ -45,7 +45,7 @@ def run_asp(
     # imageDir is /discover/.../ASP/batch/pairname -- imageDir is now the outDir AND inDir
     # batchDir is /discover/.../ASP/batch
     # ddir is     /discover/.../ASP/
-    batchDir = os.path.join(ASPdir, batchID)
+    batchDir = os.path.join(ASPdir, 'batch{}'.format(batchID))
     imageDir = os.path.join(batchDir, pairname)
     ddir = os.path.split(ASPdir)[0] # strip off ASP to get boreal_nga
     stereoCode = os.path.join(ddir, 'code', 'evhr', 'dg_stereo.sh') # now strip off ASP (outdir name) and get code dir
@@ -125,8 +125,8 @@ def run_asp(
     print "Calling {} to perform stereo...\n\n".format(stereoCode)
     command = 'bash {} {} false false {}'.format(stereoCode, pairname, batchDir) # false for ADAPT and false for MAP
     print command #T
-    subp.check_output([command])
-    #os.system(command) # try this for now
+    #subp.check_output([command])
+    os.system(command) # try this for now
 
     # old workflow:
 ##    # get the header indices, try using pairname field first
@@ -537,7 +537,7 @@ def run_asp(
 ##    strip2size = round(os.path.getsize(fullPathStrips[1])/1024.0/1024/1024, 3)
     run_times_csv = os.path.join(ddir, 'run_times.csv')
     with open(run_times_csv, 'a') as rt:
-        rt.write('{}, {}, {}, {}, {}, {}, {}\n'.format(batchID, pairname, total_time, (total_time/60), 'PC size goes here', nodeName))
+        rt.write('{}, {}, {}, {}, {}, {}\n'.format(batchID, pairname, total_time, (total_time/60), 'PC size goes here', nodeName))
 
     print("\n\n-----------------------------")
     print("\n\t ")
@@ -564,7 +564,7 @@ if __name__ == "__main__":
     # get variables being passed along from query_db and run_asp with them
     #run_asp( sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7], sys.argv[8]  )
     # TESTING passing vars thru
-    run_asp( sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6],  sys.argv[7], sys.argv[8],  sys.argv[9], sys.argv[10], sys.argv[11], sys.argv[12], sys.argv[13] ) # 13 arguments (plus python script)
+    run_asp( sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])#, sys.argv[5], sys.argv[6],  sys.argv[7], sys.argv[8],  sys.argv[9], sys.argv[10], sys.argv[11], sys.argv[12], sys.argv[13] ) # 13 arguments (plus python script)
 
 
 
