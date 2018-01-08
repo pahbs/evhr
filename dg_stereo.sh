@@ -14,7 +14,7 @@
 # Dependencies (sh & python scripts run as cmd line tools):
 #   query_db_catid.py		script that returns the ADAPT dir of images of given catid
 #   proj_select.py          get the best prj used to mapproject input
-#   utm_proj_select.py		force get UTM prj for DEM and ortho; edit to script from pygeotools; run this: pip install --user pygeotools
+#   utm_proj_select.py		force get UTM prj for DEM and ortho; edit to script from pygeotools to force select UTM zone (instead of best prj); 
 #   color_hs.py
 #   ntfmos.sh
 #   dg_stereo_int.py
@@ -62,15 +62,10 @@ else
     RUN_PSTEREO=true
 fi
 
-# North America boreal
-#rpcdem=/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/refdem/ASTGTM2_N40-79W.vrt
-# Eurasian boreal
-#rpcdem=/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/refdem/ASTGTM2_N40-79E.vrt
-
 if [ "$ADAPT" = true ]; then
     out_root=/att/pubrepo/DEM/hrsi_dsm
     if [ "$TEST" = true ]; then
-        out_root=/att/nobackup/pmontesa/outASP_${testname}
+        out_root=$NOBACKUP/outASP_${testname}
     fi
 else
     out_root=$4 # output directory is 4th input if on DISCOVER
@@ -167,9 +162,9 @@ else
     in_right_xml=${in_right%.*}.xml
 fi
 
-echo; echo "Determine output UTM prj and native resolution ..."
+echo; echo "Determine RPCDEM prj, output UTM prj, and native resolution ..."
 # Get proj from XML
-proj_mapprj=$(proj_select.py ${in_left_xml})
+proj_rpcdem=$(proj_select.py ${rpcdem})
 proj=$(utm_proj_select.py ${in_left_xml})
 echo "Projection: ${proj}"
 
@@ -200,7 +195,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
 
     #Map mosaiced input images using ASP mapproject
     if [ "$MAP" = true ] ; then
-        map_opts="--threads $ncpu -t rpc --nodata-value 0 --t_srs \"$proj_mapprj\""
+        map_opts="--threads $ncpu -t rpc --nodata-value 0 --t_srs \"$proj_rpcdem\""
 
         if [[ -n $native_res ]]; then
             map_opts+=" --tr $native_res"
@@ -217,10 +212,10 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         #Determine stereo intersection bbox up front from xml files
         #if [[ -z "$crop" ]] ; then
         echo "Projection used for initial alignment of stereopairs:"
-        echo $proj_mapprj
+        echo $proj_rpcdem
         echo "Computing intersection extent in projected coordinates:"
         #Want to compute intersection with rpcdem as well
-        map_extent=$(dg_stereo_int.py $in_left_xml $in_right_xml "$proj_mapprj")
+        map_extent=$(dg_stereo_int.py $in_left_xml $in_right_xml "$proj_rpcdem")
         #else
         #    echo "Using user-specified crop extent:"
         #    map_extent=$crop
