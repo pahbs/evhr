@@ -413,7 +413,7 @@ else
     #If both in_left and in_right exist, then catid mosaics are complete, and in_left can be ortho'd
     # else no mosiacs done, in_left is an xml used for proj and native_res; need indiv scenes indiv ortho'd then dem_mosaic
     if [ ! -e ${out_ortho} ] ; then
-        if [ -e ${in_left} ] && [ -e ${in_right} ] ]; then
+        if [ -e ${in_left} ] && [ -e ${in_right} ] ; then
 
             echo; echo "Mapproject at ${res}m ${in_left} onto ${stats_dem}"; echo
             map_opts=" --tr $native_res"
