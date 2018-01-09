@@ -42,7 +42,7 @@ ADAPT="$2"    #true or false
 MAP="$3"
 
 if [ "$ADAPT" = false ]; then
-    $TEST=false
+    TEST=false
 fi
 
 if [ "$TEST" = true ]; then
