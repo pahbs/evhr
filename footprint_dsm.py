@@ -2,12 +2,28 @@
 # Import and function definitions
 import os, sys, osgeo, shutil, csv, subprocess as subp
 from osgeo import ogr, osr, gdal
-import workflow_functions as wf
+##import workflow_functions as wf
 ##import get_dsm_info
 import get_stereopairs_v3 as g
 from os import listdir
 import dsm_info
 import argparse
+
+def run_wait_os(cmdStr, print_stdOut=True):
+    """
+    Initialize OS command
+    Wait for results (Communicate results i.e., make python wait until process is finished to proceed with next step)
+    """
+    import subprocess as subp
+
+    Cmd = subp.Popen(cmdStr.rstrip('\n'), stdout=subp.PIPE, shell=True)
+    stdOut, err = Cmd.communicate()
+
+    if print_stdOut:
+        print ("\tInitialized: %s" %(cmdStr))
+        print ("\t..Waiting for command to run...")
+        print("\t" + str(stdOut) + str(err))
+        print("\tEnd of command.")
 
 def run_imagelink(pairname, rootDir):
     """Create a links in 3 top-level dirs to the 3 types of output (CLR, DRG, and DEM) tifs in native pairname dirs
@@ -177,26 +193,26 @@ def footprint_valid_pixels(root, pairname, src, newFieldsList, newAttribsList, o
         else:
             cmdStr = "gdal_translate -outsize .25% .25% -co compress=lzw -b 1 -ot byte -scale 1 1 {} {}".format(src, outValTif_TMP)
 
-        wf.run_wait_os(cmdStr,print_stdOut=False)
+        run_wait_os(cmdStr,print_stdOut=False)
         #print "     [.b] POLYGONIZE %s" %outValTif_TMP
         cmdStr = "gdal_polygonize.py {} -f 'ESRI Shapefile' {}".format(outValTif_TMP, outValShp_TMP)
-        wf.run_wait_os(cmdStr,print_stdOut=False)
+        run_wait_os(cmdStr,print_stdOut=False)
 
         #print "     [.c] REMOVE NODATA HOLES: %s" %outValShp
         cmdStr = "ogr2ogr {} {} -where 'DN>0' -overwrite".format(outValShp, outValShp_TMP)
-        wf.run_wait_os(cmdStr,print_stdOut=False)
+        run_wait_os(cmdStr,print_stdOut=False)
 
         #print " [2] Reproject to WGS and merge"
         cmdStr = "ogr2ogr -f 'ESRI Shapefile' -t_srs EPSG:3995 {} {} -overwrite".format(outValShp_prj, outValShp)
-        wf.run_wait_os(cmdStr,print_stdOut=False)
+        run_wait_os(cmdStr,print_stdOut=False)
 
         #print " [3] Dissolve/Aggregate Polygons into 1 feature"
         input_basename = os.path.split(outValShp_prj)[1].replace(".shp","")
         cmdStr = "ogr2ogr {} {} -dialect sqlite -sql 'SELECT GUnion(geometry), DN FROM {} GROUP BY DN'".format(outValShp_aggtmp, outValShp_prj, input_basename)
-        wf.run_wait_os(cmdStr,print_stdOut=False)
+        run_wait_os(cmdStr,print_stdOut=False)
         #print " [4] Simplify"
         cmdStr = "ogr2ogr {} {} -simplify .001".format(outValShp_agg, outValShp_aggtmp)
-        wf.run_wait_os(cmdStr,print_stdOut=False)
+        run_wait_os(cmdStr,print_stdOut=False)
 
         # Check to see if the pairname exists in the main shp
         update = True
@@ -251,11 +267,11 @@ def footprint_valid_pixels(root, pairname, src, newFieldsList, newAttribsList, o
             if os.path.isfile(mainVALID):
                 print "\n\t Updating footprint shp %s with current %s" %(mainVALID,pairname)
                 cmdStr = "ogr2ogr -f 'ESRI Shapefile' -update -append " + mainVALID + " " + outValShp_agg  #-nln merge
-                wf.run_wait_os(cmdStr,print_stdOut=False)
+                run_wait_os(cmdStr,print_stdOut=False)
             else:
                 print "\n\t Creating footprint shp: %s" %mainVALID
                 cmdStr = "ogr2ogr -f 'ESRI Shapefile' " + mainVALID + " " + outValShp_agg
-                wf.run_wait_os(cmdStr,print_stdOut=False)
+                run_wait_os(cmdStr,print_stdOut=False)
 
             # Clean up tmp files
             ##cmd = "find %s -type f -name VALID* -exec rm -rf {} \;" %pairnameDir
