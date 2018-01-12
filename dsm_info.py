@@ -165,12 +165,16 @@ def main(imageDir):
     Output a CSV file with stereo angles and input XML info
     """
     # Create header
-    hdr =   "left_scene,right_scene,"+\
-            "SatEl,SatAz,SunEl,SunAz,ITVA,CTVA,ONVA,GSD,SatEl,SatAz,SunEl,SunAz,ITVA,CTVA,ONVA,GSD,"+\
-            "centLon,centLat,centLon,centLat,"+\
-            "ephemX,ephemY,ephemZ,ephemX,ephemY,ephemZ,"+\
-            "ullon,ullat,lllon,lllat,urlon,urlat,lrlon,lrlat,ullon,ullat,lllon,lllat,urlon,urlat,lrlon,lrlat," +\
-            "ang_conv,ang_bie,ang_asym\n"
+    hdr =   "IMG_L,IMG_R,"+\
+            "SATEL_L,SATAZ_L,SUNEL_L,SUNAZ_L,ITVA_L,CTVA_L,ONVA_L,GSD_L,"+\
+            "SATEL_R,SATAZ_R,SUNEL_R,SUNAZ_R,ITVA_R,CTVA_R,ONVA_R,GSD_R,"+\
+            "CENTLON_L,CENTLAT_L,"+\
+            "CENTLON_R,CENTLAT_R,"+\
+            "EPHEMX_L,EPHEMY_L,EPHEMZ_L,"+\
+            "EPHEMX_R,EPHEMY_R,EPHEMZ_R,"+\
+            "ULLON_L,ULLAT_L,LLLON_L,LLLAT_L,URLON_L,URLAT_L,LRLON_L,LRLAT_L,"+\
+            "ULLON_R,ULLAT_R,LLLON_R,LLLAT_R,URLON_R,URLAT_R,LRLON_R,LRLAT_R," +\
+            "ANG_CON,ANG_BIE,ANG_ASY\n"
 
     # Get pairname from input image dir
     baseDir, pairname = os.path.split(imageDir) # baseDir i.e. /discover/nobackup/projects/boreal_nga/inASP/batchtest1
@@ -322,11 +326,9 @@ def main(imageDir):
                     stereoAngs = calc_stereoAngles(meanSatEl_1,meanSatAz_1,meanSatEl,meanSatAz,ephemX_1,ephemY_1,ephemZ_1,ephemX,ephemY,ephemZ,centLat,centLon)
 
                     outCSVline = Names + SSGangles + centCoords + ephemeris + cornerCoords + str(stereoAngs[0]) + "," + str(stereoAngs[1]) + "," + str(stereoAngs[2])+'\n'
-                    ##print outCSVline
 
                     # Write line
                     csvfile.write(outCSVline)
-                    ##csvfile.write(outline + str(stereoAngs[0]) + "," + str(stereoAngs[1]) + "," + str(stereoAngs[2]))
 
                     print("\tOuput CSV file: %s" %(outCSV))
                     print("\tConvergence Angle          = " + str(stereoAngs[0]))
