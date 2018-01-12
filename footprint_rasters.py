@@ -3,7 +3,9 @@
 # Import and function definitions
 import os, sys, osgeo, subprocess as subp
 from osgeo import ogr, osr, gdal
+
 import argparse
+import dsm_info
 
 def run_wait_os(cmdStr, print_stdOut=True):
     """
@@ -29,22 +31,101 @@ def make_kml(fn):
     cmd = subp.Popen(cmdStr, stdout=subp.PIPE, shell=True)
     s,e = cmd.communicate()
 
+def run_imagelink(pairname, rootDir):
+    """Create a links in 3 top-level dirs to the 3 types of output (CLR, DRG, and DEM) tifs in native pairname dirs
+    """
+
+    print "\n\t Build a VRT of the CLR, DRG and DEM tifs\n\n"
+
+    src_tuple = (
+                "_color_hs.tif",\
+                "_ortho.tif",\
+                "_ortho_4m.tif",\
+                "out-DEM_1m.tif",\
+                "out-DEM_4m.tif",\
+                "out-DEM_24m.tif",\
+                )
+
+    # Find the file using the src string
+    for root, dirs, files in os.walk(os.path.join(rootDir,pairname)):
+        for fyle in files:
+            if fyle.endswith(src_tuple):
+                srcFull = os.path.join(rootDir,pairname,fyle)
+
+                outDir = ''
+                fyle = os.path.split(srcFull)[1]
+
+                if not pairname in fyle and any (x in fyle for x in ["out-strip-DEM.tif", "out-DEM.tif", "out-DEM_1m.tif", "out-DEM_4m.tif", "out-DEM_24m.tif"]):
+                    outDir = os.path.join(rootDir, "_dem")
+                    dst = os.path.join(outDir, pairname+'_DEM'+fyle.split('-DEM')[1])
+                    do_kmz = False
+
+                if "clr" in fyle:
+                    outDir = os.path.join(rootDir, "_clr")
+                    dst = os.path.join(outDir, pairname+"_clr.tif")
+                    do_kmz = False
+
+                if "DRG" in fyle:
+                    outDir = os.path.join(rootDir, "_drg")
+                    dst = os.path.join(outDir, pairname+"_drg.tif")
+                    do_kmz = False
+
+                if "color_hs.tif" in fyle:
+                    outDir = os.path.join(rootDir, "_color_hs")
+                    dst = os.path.join(outDir, pairname+fyle.split('DEM')[1])
+                    do_kmz = False
+
+                if pairname in fyle and "_ortho" in fyle:
+                    outDir = os.path.join(rootDir, "_ortho")
+                    dst = os.path.join(outDir, pairname+'_ortho'+fyle.split('_ortho')[1])
+                    do_kmz = False
+
+                if outDir:
+                    os.system('mkdir -p %s' % outDir)
+
+                    if os.path.isfile(dst):
+                        os.remove(dst)
+                    # Eventually, take the symlink creation out.
+                    if os.path.isfile(srcFull):
+                        ##cmdStr = "gdal_translate -of VRT {} {}".format(srcFull, dst)
+                        cmdStr = "ln -s {} {}".format(srcFull, dst)
+                        cmd = subp.Popen(cmdStr, stdout=subp.PIPE, shell=True)
+                        print("\tWriting symlink " + dst)
+
+                        if do_kmz:
+                            make_kmz(dst)
+
 def getparser():
     parser = argparse.ArgumentParser(description="Create footprints of rasters files")
     parser.add_argument('ras_dir', default=None, help='Path to dir with raster to footprint')
     parser.add_argument('out_dir', default=None, type=str, help='Output dir out_shp')
     parser.add_argument('-ras_ext', default='.tif', help='The extension of rasters to be footprinted')
     parser.add_argument('-out_shp', default='raster_footprints', help='Output shapefile name of footprints')
-    parser.add_argument('-file_fieldname', type=str, default='Name', help='String indicating the field name describing the files')
-    parser.add_argument('-kml', action='store_true', help='Output kml of footprints for Google Earth')
+    parser.add_argument('-file_fieldname', type=str, default='FILE', help='String indicating the field name describing the files')
     parser.add_argument('-c_pct', default='.25', type=str, help='The percent by which input pixel sizes will be coarsened (divided by)')
-    parser.add_argument('-tmp_dir', default='$HOME/tmp', type=str, help='Output dir for tmp files')
+    parser.add_argument('-tmp_dir', default=None, type=str, help='Output dir for tmp files')
+    parser.add_argument('-dir_exc_list', nargs='+', default=None, help='Exclude subdirs that start with strings in this list (_ ex z)')
+    parser.add_argument('-dsm', action='store_true', default=False, help='footprint DSMs')
+    parser.add_argument('-kml', action='store_true', default=False, help='Output kml of footprints for Google Earth')
     return parser
 
 def main():
 
-    """Create/Update a directory's footprint shapefile.
-        Produces a coarsened shapefile & KML version of the valid pixels from all geotiffs in a dir
+    """Creates/Update a top-level directory's footprint shapefile of all rasters meeting a specified extension.
+
+        Produces a coarsened shapefile of the valid pixels from all these rasters with file and path attributes.
+
+        The -dsm flag returns a shapefile that includes many attributes (related to the stereo acquisition) from the associated XMLs found in the same dir as the raster.
+        The -kml flag will return a KML version of the shapefile
+
+    Note: A particular version of SQLite is needed to run the SQL Gunion operation
+    This version should be sourced prior to running this script, by appending yout PATH variable to dirs that hold the correct version of SQLite.
+    I have this:
+        export PATH=/usr/local/bin:/usr/bin:/bin:/opt/StereoPipeline/bin:/opt/StereoPipeline/libexec:/opt/bin:/opt/exelis/idl/bin:/usr/mpi/gcc/openmpi-1.10.5a1/bin:/opt/PGSC-imagery_utils:$PATH
+    in this file:
+        $HOME/code/sqlite_fix_new.env
+    and source like this:
+        source $HOME/code/sqlite_fix_new.env
     """
     parser = getparser()
     args = parser.parse_args()
@@ -54,135 +135,165 @@ def main():
     ras_ext = args.ras_ext
     out_shp = args.out_shp
     file_fieldname = args.file_fieldname
-    kml = args.kml
     c_pct = args.c_pct
     tmp_dir = args.tmp_dir
+    dir_exc_list = args.dir_exc_list
+    DSM = args.dsm
+    KML = args.kml
+
+    if tmp_dir is None:
+        tmp_dir = out_dir
 
     out_shp_fn = os.path.join(out_dir,out_shp)
 
     if not out_shp.endswith('shp'):
         out_shp_fn += '.shp'
 
-    print "\n\tRunning valid pixel footprints on: %s\n" %ras_dir
+    print "\n\tRunning footprints on: %s\n" %ras_dir
 
     # Collect raster feature names in working directory and subfolders therein
     ras_name_list = []
     pathroot = []
     ras_fn_list = []
+
+    print "\tWalking main dir, building list of rasters..."
+
     for root, dirs, files in os.walk(ras_dir):
+        ## https://stackoverflow.com/questions/19859840/excluding-directories-in-os-walk
+        if dir_exc_list is not None:
+            dirs[:] = [d for d in dirs if not d.startswith(tuple(dir_exc_list))]
         for f in files:
             if f.endswith(ras_ext) or f.endswith(ras_ext.upper()):
                 ras_fn_list.append(os.path.join(root, f))
                 ras_name_list.append(f)
                 pathroot.append(root)
 
+    print "\tIterating over raster list..."
     for num, ras_fn in enumerate(ras_fn_list):
-        dir_name,file_name = os.path.split(ras_fn)
-        file_name = file_name.strip('.tif').replace('.','_')
-        tmp1 = os.path.join(tmp_dir, "tmp1_"+file_name+".tif")
-        tmp2 = os.path.join(tmp_dir, "tmp2_"+file_name+".tif")
-        tmp3 = os.path.join(tmp_dir, "tmp3_"+file_name+".shp")
-        tmp4 = os.path.join(tmp_dir, "tmp4_"+file_name+".shp")
-        tmp5 = os.path.join(tmp_dir, "tmp5_"+file_name+".shp")
-        tmp6 = os.path.join(tmp_dir, "tmp6_"+file_name+".shp")
-        tmp_final = os.path.join(tmp_dir, "tmp_final_"+file_name.strip('.tif')+".shp")
+
+        # Clean up tmp files which may otherwise interfere with footprinting
+        file_list = os.listdir(tmp_dir)
+        for f in file_list:
+            if 'tmp' in f:
+                os.remove(os.path.join(tmp_dir,f))
+
+        path_name,file_name = os.path.split(ras_fn)
+        dir_name = os.path.split(path_name)[1].replace('.','_').replace('-','_')
+        tmp_file_name = dir_name + "_" + file_name.strip('.tif').replace('.','_').replace('-','_')
+        tmp1 = os.path.join(tmp_dir, "tmp1_"+tmp_file_name+".tif")
+        tmp2 = os.path.join(tmp_dir, "tmp2_"+tmp_file_name+".tif")
+        tmp3 = os.path.join(tmp_dir, "tmp3_"+tmp_file_name+".shp")
+        tmp4 = os.path.join(tmp_dir, "tmp4_"+tmp_file_name+".shp")
+        tmp5 = os.path.join(tmp_dir, "tmp5_"+tmp_file_name+".shp")
+        tmp6 = os.path.join(tmp_dir, "tmp6_"+tmp_file_name+".shp")
+        tmp_final = os.path.join(tmp_dir, "tmp_final_"+tmp_file_name+".shp")
 
         if not os.path.isfile(ras_fn):
-            print "\tWill not footprint: %s does not exist." %os.path.split(ras_fn)[1]
+            print "\tWill not footprint: %s does not exist." %ras_fn
         else:
-            # Source this file prior to running script...
-            #sqlite_fix = "$HOME/code/sqlite_fix.env"
-            #if os.path.isfile(sqlite_fix):
-            #    cmdStr = "source {}".format(sqlite_fix)
-            #    run_wait_os(cmdStr,print_stdOut=False)
-            print "\tFootprinting: %s" %os.path.split(ras_fn)[1]
-            print "\t %s of %s rasters " %(num+1,len(ras_fn_list))
-            try:
-                print "\tCOARSEN..."
-                cmdStr = "gdal_translate -outsize {}% {}% -co compress=lzw -b 1 -ot Float32 {} {}".format(c_pct, c_pct, ras_fn, tmp1)
-                run_wait_os(cmdStr,print_stdOut=False)
-                print "\tCALC BINARY MASK..."
-                cmdStr = 'gdal_calc.py --overwrite -A {} --outfile={} --calc="1*((A>=0)+0*(A<0))" --NoDataValue=-99'.format(tmp1, tmp2)
-                run_wait_os(cmdStr,print_stdOut=False)
-                print "\tSIEVE..."
-                cmdStr = 'gdal_sieve.py -8 -st 5 {} {}'.format(tmp2, tmp3)
-                run_wait_os(cmdStr,print_stdOut=False)
-                print "\tPOLYGONIZE..."
-                cmdStr = "gdal_polygonize.py -8 -f 'ESRI Shapefile' {} {}".format(tmp3, tmp4)
-                run_wait_os(cmdStr,print_stdOut=False)
-                print "\tREMOVE NODATA POLYGONS..."
-                cmdStr = "ogr2ogr {} {} -where 'DN>0'".format(tmp5, tmp4)
-                run_wait_os(cmdStr,print_stdOut=False)
-                print "\tREPROJECT..."
-                cmdStr = "ogr2ogr -f 'ESRI Shapefile' -t_srs EPSG:3995 {} {} -overwrite".format(tmp6, tmp5)
-                run_wait_os(cmdStr,print_stdOut=False)
-                print "\tDISSOLVE/AGGREGATE INTO 1 FEATURE..."
-                input_basename = os.path.split(tmp6)[1].replace(".shp","")
-                cmdStr = "ogr2ogr {} {} -dialect sqlite -sql 'SELECT GUnion(geometry), DN FROM {} GROUP BY DN'".format(tmp_final, tmp6, input_basename)
-                run_wait_os(cmdStr,print_stdOut=False)
-                #print "\tSIMPLIFY..."
-                #cmdStr = "ogr2ogr {} {} -simplify .001".format(tmp6, tmp5)
-                #run_wait_os(cmdStr,print_stdOut=False)
 
+            print "\n\t # %s of %s rasters " %(num+1,len(ras_fn_list))
+            print "\tOutput shp: %s" %out_shp_fn
+            try:
+                print "\tChecking: %s" %ras_fn
                 # Check to see if the file name exists in the 'Name' field of the output shp
                 update = True
+                path_fieldname = 'PATH'
                 if os.path.isfile(out_shp_fn):
-                    # Open a Shapefile, and get field names
+                    # Open out_shp_fn and get field names"
                     shp = ogr.Open(out_shp_fn, 1)
                     layer = shp.GetLayer()
                     layer_defn = layer.GetLayerDefn()
                     field_names = [layer_defn.GetFieldDefn(i).GetName() for i in range(layer_defn.GetFieldCount())]
 
                     for feature in layer:
-                        if feature.GetField(file_fieldname) == file_name:
-                            update = False
+                        if feature.GetField(file_fieldname) == file_name and feature.GetField(path_fieldname) == path_name:
                             print "\tFootprint of %s already exists" %file_name
+                            update = False
                             break
                         pass
                     shp, layer, layer_defn, field_names, feature = (None for i in range(5))
 
+                if update:
+
+                    print "\tFootprinting: %s" %os.path.split(ras_fn)[1]
+                    print "\t\t...COARSEN..."
+                    cmdStr = "gdal_translate -outsize {}% {}% -co compress=lzw -b 1 -ot Float32 {} {}".format(c_pct, c_pct, ras_fn, tmp1)
+                    run_wait_os(cmdStr,print_stdOut=False)
+                    print "\t\t...CALC BINARY MASK..."
+                    cmdStr = 'gdal_calc.py --overwrite -A {} --outfile={} --calc="1*((A>=0)+0*(A<0))" --NoDataValue=-99'.format(tmp1, tmp2)
+                    run_wait_os(cmdStr,print_stdOut=False)
+                    print "\t\t...SIEVE..."
+                    cmdStr = 'gdal_sieve.py -8 -st 5 {} {}'.format(tmp2, tmp3)
+                    run_wait_os(cmdStr,print_stdOut=False)
+                    print "\t\t...POLYGONIZE..."
+                    cmdStr = "gdal_polygonize.py -8 -f 'ESRI Shapefile' {} {}".format(tmp3, tmp4)
+                    run_wait_os(cmdStr,print_stdOut=False)
+                    print "\t\t...REMOVE NODATA POLYGONS..."
+                    cmdStr = "ogr2ogr {} {} -where 'DN>0'".format(tmp5, tmp4)
+                    run_wait_os(cmdStr,print_stdOut=False)
+                    print "\t\t...REPROJECT..."
+                    cmdStr = "ogr2ogr -f 'ESRI Shapefile' -t_srs EPSG:3995 {} {} -overwrite".format(tmp6, tmp5)
+                    run_wait_os(cmdStr,print_stdOut=False)
+                    print "\t\t...DISSOLVE/AGGREGATE INTO 1 FEATURE..."
+                    input_basename = os.path.split(tmp6)[1].replace(".shp","")
+                    cmdStr = "ogr2ogr {} {} -dialect sqlite -sql 'SELECT GUnion(geometry), DN FROM {} GROUP BY DN'".format(tmp_final, tmp6, input_basename)
+                    run_wait_os(cmdStr,print_stdOut=False)
+
                 if update and os.path.isfile(tmp_final):
-                    # Add fields to the pairname's shp (tmp6)
+                    # Add fields to shp
                     ##https://gis.stackexchange.com/questions/3623/how-to-add-custom-feature-attributes-to-shapefile-using-python
-                    # Open a Shapefile, and get field names
+                    # Open a Shapefile, and get the layer
                     shp = ogr.Open(tmp_final, 1)
                     layer = shp.GetLayer()
 
-                    # Set the field types
-                    for new_field_str in [file_fieldname]:
-                        if 'Name' in new_field_str or 'chm' in new_field_str:
+                    # [1] Set the lists for field names and attributes
+                    field_names_list = [file_fieldname,path_fieldname]
+                    field_attributes_list = [os.path.split(ras_fn)[1], os.path.split(ras_fn)[0]]
+
+                    if DSM:
+                        # Adding 'pairname' field and attribtute
+                        pairname_fieldname = ['PAIRNAME']
+                        field_names_list += pairname_fieldname
+                        field_attributes_list += [os.path.split(os.path.split(ras_fn)[0])[1]]
+
+                        # Kick out ang_conv (c), ang_bie (b), ang_asm (a), the DSM info header comma-delim'd string (dsm_hdr), and the attributes comm-delim'd string associated with that header
+                        c,b,a,dsm_hdr,attributes = dsm_info.main(path_name)
+
+                        dsm_hdr_list = dsm_hdr.rstrip().strip(',').split(',')
+                        attributes_list = attributes.rstrip().strip(',').split(',')
+
+                        field_names_list += dsm_hdr_list
+                        field_attributes_list += attributes_list
+
+                    # [2] From field_names_list, get each type, set each new field
+                    for new_field_name in field_names_list:
+                        if type(new_field_name) is str or '_' in new_field_name:
                             fieldType = ogr.OFTString
-                        elif 'year' or 'month' or 'day' in new_field_str:
+                        elif type(new_field_name) is int:
                             fieldType = ogr.OFTInteger
                         else:
                             fieldType = ogr.OFTReal
 
-                        # Add a new field
-                        new_field = ogr.FieldDefn(new_field_str, fieldType)
+                        new_field = ogr.FieldDefn(new_field_name, fieldType)
                         layer.CreateField(new_field)
 
-                    # Update fields based on attributes
+                    # [3] From field_attributes_list, update fields with attributes
                     ## http://www.digital-geography.com/create-and-edit-shapefiles-with-python-only/#.V8hlLfkrLRY
                     layer_defn = layer.GetLayerDefn()
                     field_names = [layer_defn.GetFieldDefn(i).GetName() for i in range(layer_defn.GetFieldCount())]
                     feature = layer.GetFeature(0)   # Gets first, and only, feature
                     for feature in layer:
-                        for num, f in enumerate(field_names):
-                            i = feature.GetFieldIndex(f)
-                            if num > 0:
-                                feature.SetField(i, os.path.split(ras_fn)[1]) #write the raster name to the attribute here
+                        for num, f_name in enumerate(field_names):
+                            if num > 0: ## the 0 idx is the useless 'DN' field
+                                feature.SetField(num, field_attributes_list[num-1])
                                 layer.SetFeature(feature)
                     shp = None
 
-                    #print "\tDISSOLVE/AGGREGATE INTO 1 FEATURE..AGAIN.."
-                    #input_basename = os.path.split(tmp6)[1].replace(".shp","")
-                    #cmdStr = "ogr2ogr {} {} -dialect sqlite -sql 'SELECT GUnion(geometry), {} FROM {} GROUP BY {}'".format(tmp7, tmp6, file_fieldname, input_basename, file_fieldname)
-                    #run_wait_os(cmdStr,print_stdOut=False)
-
-                    # Append tmp6.shp to out_shp
+                    # Append final tmp to out_shp
                     if os.path.isfile(out_shp_fn):
                         print "\tUpdating footprint..."
-                        cmdStr = "ogr2ogr -f 'ESRI Shapefile' -update -append {} {}".format(out_shp_fn, tmp_final)  #-nln merge
+                        cmdStr = "ogr2ogr -f 'ESRI Shapefile' -update -append {} {}".format(out_shp_fn, tmp_final)
                         run_wait_os(cmdStr,print_stdOut=False)
                     else:
                         print "\tCreating footprint shp: %s" %out_shp_fn
@@ -192,14 +303,13 @@ def main():
                 # Clean up tmp files
                 file_list = os.listdir(tmp_dir)
                 for f in file_list:
-                    if 'tmp' in str(f):
+                    if 'tmp' in f:
                         os.remove(os.path.join(tmp_dir,f))
 
             except Exception, e:
                 print "\tFailed to footprint: %s" %ras_fn
 
-
-    if kml and os.path.isfile(out_shp_fn):
+    if KML and os.path.isfile(out_shp_fn):
         make_kml(out_shp_fn)
 
 if __name__ == '__main__':
