@@ -166,7 +166,7 @@ def main(imageDir):
     """
     # Create header
     hdr =   "left_scene,right_scene,"+\
-            "SatEl,SatAz,SunEl,SunAz,ITVA,CTVA,ONVA,SatEl,SatAz,SunEl,SunAz,ITVA,CTVA,ONVA,GSD,"+\
+            "SatEl,SatAz,SunEl,SunAz,ITVA,CTVA,ONVA,GSD,SatEl,SatAz,SunEl,SunAz,ITVA,CTVA,ONVA,GSD,"+\
             "centLon,centLat,centLon,centLat,"+\
             "ephemX,ephemY,ephemZ,ephemX,ephemY,ephemZ,"+\
             "ullon,ullat,lllon,lllat,urlon,urlat,lrlon,lrlat,ullon,ullat,lllon,lllat,urlon,urlat,lrlon,lrlat," +\
