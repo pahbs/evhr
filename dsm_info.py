@@ -178,7 +178,7 @@ def main(imageDir):
 
     # Get pairname from input image dir
     baseDir, pairname = os.path.split(imageDir) # baseDir i.e. /discover/nobackup/projects/boreal_nga/inASP/batchtest1
-    print("\tCalculating Epipolar Geometry for: %s" %(pairname))
+    print("\tDSM Info (epipolar geometry) for: %s" %(pairname))
 
     # Split pairname into catids
     cat1,cat2 = pairname.split("_")[2:] # get the last catIDs
