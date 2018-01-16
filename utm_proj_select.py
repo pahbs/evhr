@@ -1,7 +1,11 @@
-#! /usr/bin/env python
+#!/usr/bin/python
 
-#David Shean
-#dshean@gmail.com
+# MODIFICATION of proj_select.py
+# This version force selects UTM prj for data in the Arctic (which otherwise would have a stereographic prj selected)
+# srs = geolib.getUTMsrs(geom)
+#
+# David Shean
+# dshean@gmail.com
 
 #Script that automatically selects projection for input geometry
 #Goes through user-defined bounding boxes w/ projections (defined in geolib)
