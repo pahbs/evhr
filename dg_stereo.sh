@@ -34,7 +34,7 @@ function gettag() {
 rmfiles=true
 tile_size=2048
 
-TEST=true
+TEST=false
 
 # Required Args
 pairname="$1"
@@ -58,7 +58,7 @@ if [ "$TEST" = true ]; then
     cm=$11       #cost mode for stereo
 else
     subpixk=7
-    rpcdem=""
+    rpcdem="$4"
     RUN_PSTEREO=true
 fi
 
@@ -162,9 +162,13 @@ else
     in_right_xml=${in_right%.*}.xml
 fi
 
-echo; echo "Determine RPCDEM prj, output UTM prj, and native resolution ..."
 # Get proj from XML
-proj_rpcdem=$(proj_select.py ${rpcdem})
+if [ "$ADAPT" = true ] ; then
+    echo; echo "Determine RPCDEM prj used to mapproject input prior to stereo ..."
+    proj_rpcdem=$(proj_select.py ${rpcdem})
+fi
+
+echo; echo "Determine output UTM prj, and native resolution ..."
 proj=$(utm_proj_select.py ${in_left_xml})
 echo "Projection: ${proj}"
 
