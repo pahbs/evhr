@@ -189,9 +189,13 @@ echo "${right_catid}: $res2 GSD"
 if [ $(echo "a=($res1 < $res2); a" | bc -l) -eq 1 ] ; then
     native_res=$res1
     echo "Native res is from $left_catid : ${native_res}"
+    mos4ortho_img=$in_left
+    mos4ortho_catid=$in_left_catid
 else
     native_res=$res2
     echo "Native res is from $right_catid : ${native_res}"
+    ortho_img=$in_right
+    ortho_catid=$in_right_catid
 fi
 
 if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
@@ -205,29 +209,12 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
             map_opts+=" --tr $native_res"
             outext="${outext}_${native_res}m"
         fi
-        for id in $imgL $imgR; do
-            if [ ! -e ${id}${outext}.xml ] ; then
-                ln -sv ${id}.r100.xml ${id}${outext}.xml
-            fi
-        done
-        echo
-        # Crop gives x & y offsets and sizes, so the if/else below shouldnt apply.
-        # Some pairs need to be mapprj'd first, before cropping (eg, when one is mirrored about x&y relatie to the other) so that the crop box will cover the same geo extent
-        #Determine stereo intersection bbox up front from xml files
-        #if [[ -z "$crop" ]] ; then
         echo "Projection used for initial alignment of stereopairs:"
         echo $proj_rpcdem
         echo "Computing intersection extent in projected coordinates:"
-        #Want to compute intersection with rpcdem as well
         map_extent=$(dg_stereo_int.py $in_left_xml $in_right_xml "$proj_rpcdem")
-        #else
-        #    echo "Using user-specified crop extent:"
-        #    map_extent=$crop
-        #    unset crop
-        #fi
+        echo $map_extent; echo
 
-        echo $map_extent
-        echo
         for in_img in $in_left $in_right; do
             ln -sv ${in_img%.tif}.xml ${in_img%.tif}${outext}.xml
             map_arg="--t_projwin $map_extent $rpcdem ${in_img} ${in_img%.tif}${outext}.xml ${in_img%.tif}${outext}.tif"
@@ -417,24 +404,22 @@ else
     #If both in_left and in_right exist, then catid mosaics are complete, and in_left can be ortho'd
     # else no mosiacs done, in_left is an xml used for proj and native_res; need indiv scenes indiv ortho'd then dem_mosaic
     if [ ! -e ${out_ortho} ] ; then
-        if [ -e ${in_left} ] && [ -e ${in_right} ] ; then
-
-            echo; echo "Mapproject at ${res}m ${in_left} onto ${stats_dem}"; echo
+        if [ -e ${mos4ortho_img} ] ; then
+            echo; echo "Mapproject at ${res}m ${mos4ortho_img} onto ${stats_dem}"; echo
             map_opts=" --tr $native_res"
-            map_args="$stats_dem $in_left ${in_left%.*}.xml ${out_ortho}"
+            map_args="$stats_dem $mos4ortho_img ${mos4ortho_img%.*}.xml ${out_ortho}"
             time mapproject $map_opts $map_args
-
         else
             # This case exists to handle pairname dirs that dont have *.r100.tif; so, for each ntf run mapprj then use dem_mosaic
             echo; echo "Mapproject each indiv NTF onto ${stats_dem}"; echo
             echo; echo "Get ADAPT dir with imagery to mapproject"; echo
 
-            left_catid_dir="$(query_db_catid.py ${left_catid} -out_dir ${out_root}/${pairname})"
-            ntf_list=$(ls $left_catid_dir | grep -e "${left_catid}" | grep -i P1BS | egrep 'ntf|tif' | grep -v 'corr')
+            mos4ortho_catid_dir="$(query_db_catid.py ${mos4ortho_catid} -out_dir ${out_root}/${pairname})"
+            ntf_list=$(ls $mos4ortho_catid_dir | grep -e "${mos4ortho_catid}" | grep -i P1BS | egrep 'ntf|tif' | grep -v 'corr')
 
             cmd_list=''
             for ntf in $ntf_list ; do
-                ntf_fn=${left_catid_dir}/${ntf}
+                ntf_fn=${mos4ortho_catid_dir}/${ntf}
                 indiv_ortho=${out_root}/${pairname}/${ntf%.*}${ortho_ext}
                 map_args="$stats_dem ${ntf_fn} ${ntf_fn%.*}.xml $indiv_ortho"
     	        echo $ntf_fn
