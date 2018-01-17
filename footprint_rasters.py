@@ -268,7 +268,7 @@ def main():
 
                     # [2] Enumerate field_names_list to get corresponding attribute from field_attributes_list, then get each attribute type, and set type of each new field
                     for num, new_field_name in enumerate(field_names_list):
-                        if any(x in field_attributes_list[num] for x in ['_','/']):
+                        if any(x in field_attributes_list[num] for x in ['_','/',':']):
                             fieldType = ogr.OFTString
                         ##elif type(field_attributes_list[num]) is int:
                         ##    fieldType = ogr.OFTInteger

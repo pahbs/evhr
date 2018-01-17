@@ -237,9 +237,11 @@ def main(imageDir):
                             # Get needed vars initialize above
                             if 'CATID' in line:
                                 catID = str(line.replace('<','>').split('>')[2])
-                            if 'GENERATIONTIME' in line:
-                                gen_dt = datetime.strptime(str(line2).strip('0').strip('.'), '%Y-%m-%dT%H:%M:%S')
+                            if 'TLCTIME' in line:
+                                gen_dt = datetime.strptime(str(line2).split('.')[0], '%Y-%m-%dT%H:%M:%S')
+                                
                                 genTime = gen_dt.strftime("%H:%M:%S")
+                                print genTime
                                 genYear = gen_dt.year
                                 genMonth = gen_dt.month
                                 genDOY = gen_dt.timetuple().tm_yday
@@ -317,7 +319,7 @@ def main(imageDir):
 
                         # gather date (not needed for both, so dont use += )
                         genDateCols  = str(genYear) + ',' + str(genMonth) + ',' + str(genDOY) + ','
-                        genTimeCols += str(genTime) + ','
+                        genTimeCols += genTime + ','
 
                         # gather Sun-Sensor Geometry Angles
                         SSGangles   +=  str(meanSatEl)  + ',' + str(meanSatAz) + ',' + \
@@ -336,7 +338,7 @@ def main(imageDir):
                                         str(urlon)      + ',' + str(urlat) + ',' + \
                                         str(lrlon)      + ',' + str(lrlat) + ','
 
-
+                    print genTimeCols
                     # Calc stereo angles
                     stereoAngs = calc_stereoAngles(meanSatEl_1,meanSatAz_1,meanSatEl,meanSatAz,ephemX_1,ephemY_1,ephemZ_1,ephemX,ephemY,ephemZ,centLat,centLon)
 
