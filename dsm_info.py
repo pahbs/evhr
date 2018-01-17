@@ -166,6 +166,8 @@ def main(imageDir):
     """
     # Create header
     hdr =   "IMG_L,IMG_R,"+\
+            "YEAR,MONTH,DOY",+\
+            "TIME_L,TIME_R,"+\
             "SATEL_L,SATAZ_L,SUNEL_L,SUNAZ_L,ITVA_L,CTVA_L,ONVA_L,GSD_L,"+\
             "SATEL_R,SATAZ_R,SUNEL_R,SUNAZ_R,ITVA_R,CTVA_R,ONVA_R,GSD_R,"+\
             "CENTLON_L,CENTLAT_L,"+\
@@ -173,16 +175,15 @@ def main(imageDir):
             "EPHEMX_L,EPHEMY_L,EPHEMZ_L,"+\
             "EPHEMX_R,EPHEMY_R,EPHEMZ_R,"+\
             "ULLON_L,ULLAT_L,LLLON_L,LLLAT_L,URLON_L,URLAT_L,LRLON_L,LRLAT_L,"+\
-            "ULLON_R,ULLAT_R,LLLON_R,LLLAT_R,URLON_R,URLAT_R,LRLON_R,LRLAT_R," +\
+            "ULLON_R,ULLAT_R,LLLON_R,LLLAT_R,URLON_R,URLAT_R,LRLON_R,LRLAT_R,"+\
             "ANG_CON,ANG_BIE,ANG_ASY\n"
 
     # Get pairname from input image dir
-    baseDir, pairname = os.path.split(imageDir) # baseDir i.e. /discover/nobackup/projects/boreal_nga/inASP/batchtest1
+    baseDir, pairname = os.path.split(imageDir)
     print("\tDSM Info (epipolar geometry) for: %s" %(pairname))
 
     # Split pairname into catids
     cat1,cat2 = pairname.split("_")[2:] # get the last catIDs
-
 
     # Initialize lists
     cat1list = []
@@ -197,7 +198,6 @@ def main(imageDir):
                     cat1list.append(each)
                 if cat2 in each:
                     cat2list.append(each)
-
 
     # Name output csv with the pairname and put in output ASP dir
     outCSV = os.path.join(imageDir, "{}.csv".format(pairname))
@@ -214,13 +214,17 @@ def main(imageDir):
                 with open(os.path.realpath(os.path.join(imageDir,leftXML)), 'r') as file1, open(os.path.realpath(os.path.join(imageDir,rightXML)),'r') as file2:
                     i = 0
 
-                    # Initialize vars
+                    # Initialize vars - not necessarily stored for each stereopair (i.e., genYear, genMonth, genDOY will be the same for both)
                     outline, catID = ('' for i in range(2))
+
+                    genYear,genMonth,genDOY,\
+                    gen_dt,genTime,\
                     meanSatEl,meanSatAz,meanSunEl,meanSunAz,meanITVA,meanCTVA,meanONVA,meanGSD,\
                     ephemX,ephemY,ephemZ,\
                     ullat,ullon,lllat,lllon,urlat,urlon,lrlat,lrlon,\
-                    maxLat,minLat,maxLon,minLon,centLat,centLon = (0 for i in range(25))
-                    catIDs, SSGangles, ephemeris, centCoords, cornerCoords = ('' for i in range(5))
+                    maxLat,minLat,maxLon,minLon,centLat,centLon = (0 for i in range(30))
+
+                    catIDs, genDateCols, genTimeCols, SSGangles, ephemeris, centCoords, cornerCoords = ('' for i in range(7))
 
                     # Loop through XML files
                     for file in (file1,file2):
@@ -229,28 +233,35 @@ def main(imageDir):
                         # Read  XML line by line
                         for line in file.readlines():
                             ##print(line)
+                            line2 = line.replace('<','>').split('>')[2]
                             # Get needed vars initialize above
                             if 'CATID' in line:
                                 catID = str(line.replace('<','>').split('>')[2])
+                            if 'GENERATIONTIME' in line:
+                                gen_dt = datetime.strptime(str(line2).strip('0').strip('.'), '%Y-%m-%dT%H:%M:%S')
+                                genTime = gen_dt.strftime("%H:%M:%S")
+                                genYear = gen_dt.year
+                                genMonth = gen_dt.month
+                                genDOY = gen_dt.timetuple().tm_yday
                             if 'MEANSATEL' in line:
-                                meanSatEl = float(line.replace('<','>').split('>')[2])
+                                meanSatEl = float(line2)
                             if 'MEANSATAZ' in line:
-                                meanSatAz = float(line.replace('<','>').split('>')[2])
+                                meanSatAz = float(line2)
                             if 'MEANSUNEL' in line:
-                                meanSunEl = float(line.replace('<','>').split('>')[2])
+                                meanSunEl = float(line2)
                             if 'MEANSUNAZ' in line:
-                                meanSunAz = float(line.replace('<','>').split('>')[2])
+                                meanSunAz = float(line2)
                             if 'MEANINTRACKVIEWANGLE' in line:
-                                meanITVA = float(line.replace('<','>').split('>')[2])
+                                meanITVA = float(line2)
                             if 'MEANCROSSTRACKVIEWANGLE' in line:
-                                meanCTVA = float(line.replace('<','>').split('>')[2])
+                                meanCTVA = float(line2)
                             if 'MEANOFFNADIRVIEWANGLE' in line:
-                                meanONVA = float(line.replace('<','>').split('>')[2])
+                                meanONVA = float(line2)
                             if 'MEANPRODUCTGSD' in line:
-                                meanGSD = float(line.replace('<','>').split('>')[2])
+                                meanGSD = float(line2)
                             else:
                                 if 'MEANCOLLECTEDGSD' in line:
-                                    meanGSD = float(line.replace('<','>').split('>')[2])
+                                    meanGSD = float(line2)
                             # Get Satellite Ephemeris using the first entry in EPHEMLISTList.
                             if '<EPHEMLIST>' in line and float(line.replace('<','>').replace('>', ' ').split(' ')[2]) == 1:
                                 ephemX = float(line.replace('<','>').replace('>', ' ').split(' ')[3])
@@ -269,21 +280,21 @@ def main(imageDir):
                                 lrlon = float(line.replace('(',')').split((')'))[1].split(',')[0])
                                 lrlat = float(line.replace('(',')').split((')'))[1].split(',')[1])
                             if 'ULLON' in line:
-                                ullon = float(line.replace('<','>').split(('>'))[2])
+                                ullon = float(line2)
                             if 'ULLAT' in line:
-                                ullat = float(line.replace('<','>').split(('>'))[2])
+                                ullat = float(line2)
                             if 'URLON' in line:
-                                urlon = float(line.replace('<','>').split(('>'))[2])
+                                urlon = float(line2)
                             if 'URLAT' in line:
-                                urlat = float(line.replace('<','>').split(('>'))[2])
+                                urlat = float(line2)
                             if 'LLLON' in line:
-                                lllon = float(line.replace('<','>').split(('>'))[2])
+                                lllon = float(line2)
                             if 'LLLAT' in line:
-                                lllat = float(line.replace('<','>').split(('>'))[2])
+                                lllat = float(line2)
                             if 'LRLON' in line:
-                                lrlon = float(line.replace('<','>').split(('>'))[2])
+                                lrlon = float(line2)
                             if 'LRLAT' in line:
-                                lrlat = float(line.replace('<','>').split(('>'))[2])
+                                lrlat = float(line2)
 
                             maxLat = max(ullat,urlat,lllat,lrlat)
                             minLat = min(ullat,urlat,lllat,lrlat)
@@ -292,7 +303,7 @@ def main(imageDir):
                             centLat = minLat + (maxLat - minLat)/2
                             centLon = minLon + (maxLon - minLon)/2
 
-                        # Just capture these vars for the first file.
+                        # If only 1 catID, copy these vars for the first file.
                         if i == 1:
                             meanSatAz_1 = meanSatAz
                             meanSatEl_1 = meanSatEl
@@ -302,7 +313,11 @@ def main(imageDir):
 
                         # From both images:
                         # Get scene names instead of catids
-                        Names  =  leftXML + ',' + rightXML + ','
+                        Names        = leftXML + ',' + rightXML + ','
+
+                        # gather date (not needed for both, so dont use += )
+                        genDateCols  = str(genYear) + ',' + str(genMonth) + ',' + str(genDOY) + ','
+                        genTimeCols += str(genTime) + ','
 
                         # gather Sun-Sensor Geometry Angles
                         SSGangles   +=  str(meanSatEl)  + ',' + str(meanSatAz) + ',' + \
@@ -325,17 +340,17 @@ def main(imageDir):
                     # Calc stereo angles
                     stereoAngs = calc_stereoAngles(meanSatEl_1,meanSatAz_1,meanSatEl,meanSatAz,ephemX_1,ephemY_1,ephemZ_1,ephemX,ephemY,ephemZ,centLat,centLon)
 
-                    outCSVline = Names + SSGangles + centCoords + ephemeris + cornerCoords + str(stereoAngs[0]) + "," + str(stereoAngs[1]) + "," + str(stereoAngs[2])+'\n'
+                    out_attribute_line = Names + genDateCols + genTimeCols + SSGangles + centCoords + ephemeris + cornerCoords + str(stereoAngs[0]) + "," + str(stereoAngs[1]) + "," + str(stereoAngs[2])+'\n'
 
                     # Write line
-                    csvfile.write(outCSVline)
+                    csvfile.write(out_attribute_line)
 
                     print("\tOuput CSV file: %s" %(outCSV))
                     print("\tConvergence Angle          = " + str(stereoAngs[0]))
                     print("\tBisector Elevation Angle   = " + str(stereoAngs[1]))
                     print("\tAsymmetry Angle            = " + str(stereoAngs[2]))
 
-                    return(str(stereoAngs[0]), str(stereoAngs[1]), str(stereoAngs[2]), hdr, outCSVline)
+                    return(str(stereoAngs[0]), str(stereoAngs[1]), str(stereoAngs[2]), hdr, out_attribute_line)
 
 
 if __name__ == '__main__':

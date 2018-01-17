@@ -266,12 +266,12 @@ def main():
                         field_names_list += dsm_hdr_list
                         field_attributes_list += attributes_list
 
-                    # [2] From field_names_list, get each type, set each new field
-                    for new_field_name in field_names_list:
-                        if type(new_field_name) is str or '_' in new_field_name:
+                    # [2] Enumerate field_names_list to get corresponding attribute from field_attributes_list, then get each attribute type, and set type of each new field
+                    for num, new_field_name in enumerate(field_names_list):
+                        if any(x in field_attributes_list[num] for x in ['_','/']):
                             fieldType = ogr.OFTString
-                        elif type(new_field_name) is int:
-                            fieldType = ogr.OFTInteger
+                        ##elif type(field_attributes_list[num]) is int:
+                        ##    fieldType = ogr.OFTInteger
                         else:
                             fieldType = ogr.OFTReal
 
