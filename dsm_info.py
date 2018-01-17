@@ -166,7 +166,7 @@ def main(imageDir):
     """
     # Create header
     hdr =   "IMG_L,IMG_R,"+\
-            "YEAR,MONTH,DOY",+\
+            "YEAR,MONTH,DOY,"+\
             "TIME_L,TIME_R,"+\
             "SATEL_L,SATAZ_L,SUNEL_L,SUNAZ_L,ITVA_L,CTVA_L,ONVA_L,GSD_L,"+\
             "SATEL_R,SATAZ_R,SUNEL_R,SUNAZ_R,ITVA_R,CTVA_R,ONVA_R,GSD_R,"+\
