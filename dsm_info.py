@@ -319,7 +319,7 @@ def main(imageDir):
 
                         # gather date (not needed for both, so dont use += )
                         genDateCols  = str(Year) + ',' + str(Month) + ',' + str(DOY) + ','
-                        genTimeCols += tlc_dtTime + ','
+                        genTimeCols += tlcTime + ','
 
                         # gather Sun-Sensor Geometry Angles
                         SSGangles   +=  str(meanSatEl)  + ',' + str(meanSatAz) + ',' + \
