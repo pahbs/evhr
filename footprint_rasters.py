@@ -24,18 +24,24 @@ def run_wait_os(cmdStr, print_stdOut=True):
         print("\tEnd of command.")
 
 def make_kml(fn):
-    print("\tGenerating kml")
+    print("\tGenerating kml...")
     kml_fn = os.path.splitext(fn)[0]+'.kml'
 
     cmdStr = "ogr2ogr -f KML {} {}".format(kml_fn, fn)
     cmd = subp.Popen(cmdStr, stdout=subp.PIPE, shell=True)
     s,e = cmd.communicate()
 
-def run_imagelink(pairname, rootDir):
+def make_csv(fn):
+    print("\tGenerating csv...")
+    csv_fn = os.path.splitext(fn)[0]+'.csv'
+
+    cmdStr = "ogr2ogr -f CSV {} {}".format(csv_fn, fn)
+    cmd = subp.Popen(cmdStr, stdout=subp.PIPE, shell=True)
+    s,e = cmd.communicate()
+
+def make_link(pairname, rootDir):
     """Create a links in 3 top-level dirs to the 3 types of output (CLR, DRG, and DEM) tifs in native pairname dirs
     """
-
-    print "\n\t Build a VRT of the CLR, DRG and DEM tifs\n\n"
 
     src_tuple = (
                 "_color_hs.tif",\
@@ -43,7 +49,7 @@ def run_imagelink(pairname, rootDir):
                 "_ortho_4m.tif",\
                 "out-DEM_1m.tif",\
                 "out-DEM_4m.tif",\
-                "out-DEM_24m.tif",\
+                "out-DEM_24m.tif"\
                 )
 
     # Find the file using the src string
@@ -58,42 +64,26 @@ def run_imagelink(pairname, rootDir):
                 if not pairname in fyle and any (x in fyle for x in ["out-strip-DEM.tif", "out-DEM.tif", "out-DEM_1m.tif", "out-DEM_4m.tif", "out-DEM_24m.tif"]):
                     outDir = os.path.join(rootDir, "_dem")
                     dst = os.path.join(outDir, pairname+'_DEM'+fyle.split('-DEM')[1])
-                    do_kmz = False
-
-                if "clr" in fyle:
-                    outDir = os.path.join(rootDir, "_clr")
-                    dst = os.path.join(outDir, pairname+"_clr.tif")
-                    do_kmz = False
-
-                if "DRG" in fyle:
-                    outDir = os.path.join(rootDir, "_drg")
-                    dst = os.path.join(outDir, pairname+"_drg.tif")
-                    do_kmz = False
 
                 if "color_hs.tif" in fyle:
                     outDir = os.path.join(rootDir, "_color_hs")
                     dst = os.path.join(outDir, pairname+fyle.split('DEM')[1])
-                    do_kmz = False
 
                 if pairname in fyle and "_ortho" in fyle:
                     outDir = os.path.join(rootDir, "_ortho")
                     dst = os.path.join(outDir, pairname+'_ortho'+fyle.split('_ortho')[1])
-                    do_kmz = False
 
                 if outDir:
                     os.system('mkdir -p %s' % outDir)
 
                     if os.path.isfile(dst):
                         os.remove(dst)
-                    # Eventually, take the symlink creation out.
+
                     if os.path.isfile(srcFull):
-                        ##cmdStr = "gdal_translate -of VRT {} {}".format(srcFull, dst)
                         cmdStr = "ln -s {} {}".format(srcFull, dst)
                         cmd = subp.Popen(cmdStr, stdout=subp.PIPE, shell=True)
-                        print("\tWriting symlink " + dst)
+                        print("\t\tWriting symlink: %s " %dst)
 
-                        if do_kmz:
-                            make_kmz(dst)
 
 def getparser():
     parser = argparse.ArgumentParser(description="Create footprints of rasters files")
@@ -107,6 +97,8 @@ def getparser():
     parser.add_argument('-dir_exc_list', nargs='+', default=None, help='Exclude subdirs that start with strings in this list (_ ex z)')
     parser.add_argument('-dsm', action='store_true', default=False, help='footprint DSMs')
     parser.add_argument('-kml', action='store_true', default=False, help='Output kml of footprints for Google Earth')
+    parser.add_argument('-csv', action='store_true', default=False, help='Output csv of attributes')
+    parser.add_argument('-link', action='store_true', default=False, help='Write a symlink')
     return parser
 
 def main():
@@ -116,7 +108,7 @@ def main():
         Produces a coarsened shapefile of the valid pixels from all these rasters with file and path attributes.
 
         The -dsm flag returns a shapefile that includes many attributes (related to the stereo acquisition) from the associated XMLs found in the same dir as the raster.
-        The -kml flag will return a KML version of the shapefile
+        The -kml and -csv flags will return a KML or CSV version of the shapefile
 
     Note: A particular version of SQLite is needed to run the SQL Gunion operation
     This version should be sourced prior to running this script, by appending yout PATH variable to dirs that hold the correct version of SQLite.
@@ -140,6 +132,8 @@ def main():
     dir_exc_list = args.dir_exc_list
     DSM = args.dsm
     KML = args.kml
+    CSV = args.csv
+    LINK = args.link
 
     if tmp_dir is None:
         tmp_dir = out_dir
@@ -255,7 +249,8 @@ def main():
                         # Adding 'pairname' field and attribtute
                         pairname_fieldname = ['PAIRNAME']
                         field_names_list += pairname_fieldname
-                        field_attributes_list += [os.path.split(os.path.split(ras_fn)[0])[1]]
+                        pairname = os.path.split(os.path.split(ras_fn)[0])[1]
+                        field_attributes_list += [pairname]
 
                         # Kick out ang_conv (c), ang_bie (b), ang_asm (a), the DSM info header comma-delim'd string (dsm_hdr), and the attributes comm-delim'd string associated with that header
                         c,b,a,dsm_hdr,attributes = dsm_info.main(path_name)
@@ -270,8 +265,8 @@ def main():
                     for num, new_field_name in enumerate(field_names_list):
                         if any(x in field_attributes_list[num] for x in ['_','/',':']):
                             fieldType = ogr.OFTString
-                        ##elif type(field_attributes_list[num]) is int:
-                        ##    fieldType = ogr.OFTInteger
+                        elif any(x in field_names_list[num] for x in ['YEAR','MONTH','DOY']):
+                            fieldType = ogr.OFTInteger
                         else:
                             fieldType = ogr.OFTReal
 
@@ -292,13 +287,17 @@ def main():
 
                     # Append final tmp to out_shp
                     if os.path.isfile(out_shp_fn):
-                        print "\tUpdating footprint..."
+                        print "\tUpdating footprint: %s" %out_shp_fn
                         cmdStr = "ogr2ogr -f 'ESRI Shapefile' -update -append {} {}".format(out_shp_fn, tmp_final)
                         run_wait_os(cmdStr,print_stdOut=False)
                     else:
-                        print "\tCreating footprint shp: %s" %out_shp_fn
+                        print "\tCreating footprint: %s" %out_shp_fn
                         cmdStr = "ogr2ogr -f 'ESRI Shapefile' {} {}".format(out_shp_fn, tmp_final)
                         run_wait_os(cmdStr,print_stdOut=False)
+
+                    if DSM and LINK:
+                        print "\tCreating symlinks: %s" %pairname
+                        make_link(pairname, os.path.split(os.path.split(ras_fn)[0])[0])
 
                 # Clean up tmp files
                 file_list = os.listdir(tmp_dir)
@@ -311,6 +310,8 @@ def main():
 
     if KML and os.path.isfile(out_shp_fn):
         make_kml(out_shp_fn)
+    if CSV and os.path.isfile(out_shp_fn):
+        make_csv(out_shp_fn)
 
 if __name__ == '__main__':
     main()

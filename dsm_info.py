@@ -217,8 +217,8 @@ def main(imageDir):
                     # Initialize vars - not necessarily stored for each stereopair (i.e., genYear, genMonth, genDOY will be the same for both)
                     outline, catID = ('' for i in range(2))
 
-                    genYear,genMonth,genDOY,\
-                    gen_dt,genTime,\
+                    Year,Month,DOY,\
+                    tlc_dt,tlcTime,\
                     meanSatEl,meanSatAz,meanSunEl,meanSunAz,meanITVA,meanCTVA,meanONVA,meanGSD,\
                     ephemX,ephemY,ephemZ,\
                     ullat,ullon,lllat,lllon,urlat,urlon,lrlat,lrlon,\
@@ -238,13 +238,13 @@ def main(imageDir):
                             if 'CATID' in line:
                                 catID = str(line.replace('<','>').split('>')[2])
                             if 'TLCTIME' in line:
-                                gen_dt = datetime.strptime(str(line2).split('.')[0], '%Y-%m-%dT%H:%M:%S')
-                                
-                                genTime = gen_dt.strftime("%H:%M:%S")
-                                print genTime
-                                genYear = gen_dt.year
-                                genMonth = gen_dt.month
-                                genDOY = gen_dt.timetuple().tm_yday
+                                tlc_dt = datetime.strptime(str(line2).split('.')[0], '%Y-%m-%dT%H:%M:%S')
+
+                                tlcTime = tlc_dt.strftime("%H:%M:%S")
+
+                                Year = tlc_dt.year
+                                Month = tlc_dt.month
+                                DOY = tlc_dt.timetuple().tm_yday
                             if 'MEANSATEL' in line:
                                 meanSatEl = float(line2)
                             if 'MEANSATAZ' in line:
@@ -318,8 +318,8 @@ def main(imageDir):
                         Names        = leftXML + ',' + rightXML + ','
 
                         # gather date (not needed for both, so dont use += )
-                        genDateCols  = str(genYear) + ',' + str(genMonth) + ',' + str(genDOY) + ','
-                        genTimeCols += genTime + ','
+                        genDateCols  = str(Year) + ',' + str(Month) + ',' + str(DOY) + ','
+                        genTimeCols += tlc_dtTime + ','
 
                         # gather Sun-Sensor Geometry Angles
                         SSGangles   +=  str(meanSatEl)  + ',' + str(meanSatAz) + ',' + \
@@ -338,7 +338,6 @@ def main(imageDir):
                                         str(urlon)      + ',' + str(urlat) + ',' + \
                                         str(lrlon)      + ',' + str(lrlat) + ','
 
-                    print genTimeCols
                     # Calc stereo angles
                     stereoAngs = calc_stereoAngles(meanSatEl_1,meanSatAz_1,meanSatEl,meanSatAz,ephemX_1,ephemY_1,ephemZ_1,ephemX,ephemY,ephemZ,centLat,centLon)
 
