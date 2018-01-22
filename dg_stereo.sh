@@ -59,7 +59,7 @@ if [ "$TEST" = true ]; then
 else
     subpixk=7
     rpcdem="$4"
-    RUN_PSTEREO=true
+    RUN_PSTEREO=false
 fi
 
 if [ "$ADAPT" = true ]; then
@@ -194,8 +194,8 @@ if [ $(echo "a=($res1 < $res2); a" | bc -l) -eq 1 ] ; then
 else
     native_res=$res2
     echo "Native res is from $right_catid : ${native_res}"
-    ortho_img=$in_right
-    ortho_catid=$in_right_catid
+    mos4ortho_img=$in_right
+    mos4ortho_catid=$in_right_catid
 fi
 
 if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
@@ -332,10 +332,9 @@ else
     base_dem_opts=" --remove-outliers --remove-outliers-params 75.0 3.0"
     base_dem_opts+=" --threads 4"
     base_dem_opts+=" --t_srs \"$proj\""
-
+    echo; echo "Check for dems..."; echo
     for dem_res in $stats_res $mid_res $fine_res ; do
         dem_opts="$base_dem_opts"
-        echo; echo "Check for dems..."; echo
         if [ ! -e ${out}-DEM_${dem_res}m.tif ]; then
             echo "Creating DEM at ${dem_res}m ..."
             dem_opts+=" --nodata-value $dem_ndv"
@@ -358,7 +357,10 @@ else
               eval time point2dem $dem_opts ${out}-PC.tif
               mv ${out}_${dem_res}m-DEM.tif ${out}-DEM_${dem_res}m.tif
           fi
+        else
+            echo "Finished: ${out}-DEM_${dem_res}m.tif"
         fi
+        
     done
 
     if [[ ! -z $cmd_list ]] ; then
@@ -379,14 +381,16 @@ else
     max=$(echo $mean $stddev | awk '{print $1 + $2}')
 
     cmd_list=''
+    echo; echo "Check for color-shaded reliefs..."; echo
     for dem in $stats_dem $mid_dem $fine_dem ; do
-
     	cmd=''
         if [ ! -e ${dem%.*}_color_hs.tif.ovr ]; then
             rm -f ${dem%.*}_color_hs.tif
 
     	    cmd+="time color_hs.py $dem -clim $min $max -hs_overlay -alpha .8; "
     	    cmd_list+=\ \'$cmd\'
+        else
+            echo "Finished: ${dem%.*}_color_hs.tif"
         fi
     done
     if [[ ! -z $cmd_list ]]; then
@@ -405,7 +409,7 @@ else
     # else no mosiacs done, in_left is an xml used for proj and native_res; need indiv scenes indiv ortho'd then dem_mosaic
     if [ ! -e ${out_ortho} ] ; then
         if [ -e ${mos4ortho_img} ] ; then
-            echo; echo "Mapproject at ${res}m ${mos4ortho_img} onto ${stats_dem}"; echo
+            echo; echo "Mapproject at ${native_res}m ${mos4ortho_img} onto ${stats_dem}"; echo
             map_opts=" --tr $native_res"
             map_args="$stats_dem $mos4ortho_img ${mos4ortho_img%.*}.xml ${out_ortho}"
             time mapproject $map_opts $map_args
