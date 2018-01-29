@@ -11,6 +11,10 @@
 #!/usr/local/other/SSSO_Ana-PyD/4.2.0_py2.7_gcc-5.3-sp3/bin/python
 ###############################################
 # Import and function definitions
+import PyQt4, os
+print dir(PyQt4)
+os.system('gdaladdo --help')
+os.system('gdaladdo --version')
 import os, sys, math, osgeo, shutil, time, glob, platform, csv, subprocess as subp
 from osgeo import ogr, osr, gdal
 from datetime import datetime
@@ -56,7 +60,7 @@ def run_asp(
     print imageDir
     print stereoCode
 
-
+ 
     # hardcode stuff for now
     nodeName = platform.node()
 ##    par = False #DEL or edit these 3 lines of code depending on what we wanna do with stereo
@@ -74,6 +78,7 @@ def run_asp(
     with open(preLogTextFile, 'r') as tf:
         preLogText = tf.read()
 
+    print "maggie-100"
 ##    # convert boolean vars to boolean
 ##    mapprj = bool(strtobool(mapprj)) # strtobool converts to 1 or 0, bool converts to True, False
 ##    doP2D = bool(strtobool(doP2D))
