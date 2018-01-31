@@ -439,10 +439,11 @@ else
 
             time dem_mosaic --tr $native_res --threads $ncpu `ls ${out_root}/${pairname}/*${ortho_ext}` -o ${out_root}/${pairname}/${pairname}
             mv ${out_root}/${pairname}/${pairname}-tile-0.tif ${out_ortho}
-            echo "Building overviews in background for:"; echo; echo "$out_ortho"
-            gdaladdo -ro -r average ${out_ortho} 2 4 8 16 32 64 &
-
         fi
+    fi
+    if [ ! -e ${out_ortho%.*}.tif.ovr ] ; then
+        echo "Building overviews in background for:"; echo "$out_ortho"
+        gdaladdo -ro -r average ${out_ortho} 2 4 8 16 32 64 &
     fi
     if [ ! -e ${out_ortho%.*}_${mid_res}m.tif.ovr ] ; then
         echo; echo "Simple gdal_translate to coarsen native_res ortho..."; echo
