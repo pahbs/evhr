@@ -244,7 +244,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     stereo_opts+=" --corr-timeout 300"
     stereo_opts+=" --subpixel-kernel $subpixk $subpixk"
     #stereo_opts+=" --fill-holes-max-size 15"
-    stereo_opts+=" --erode-max-size 150"
+    #stereo_opts+=" --erode-max-size 150"
     stereo_opts+=" --individually-normalize"
     stereo_opts+=" --tif-compress LZW"
     #stereo_opts+=" --job-size-w $tile_size --job-size-h $tile_size"
