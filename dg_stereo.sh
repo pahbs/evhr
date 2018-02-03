@@ -32,18 +32,21 @@ function gettag() {
 
 #Hardcoded Args
 rmfiles=true
-tile_size=2048
+tile_size=8192
 
 TEST=false
 
 # Required Args
 pairname="$1"
 ADAPT="$2"    #true or false
-MAP="$3"
+MAP="$3"      #true or false
 
 if [ "$ADAPT" = false ]; then
     TEST=false
 fi
+
+echo `/bin/hostname -s` > $HOME/code/node_`/bin/hostname -s`
+NODES=$HOME/code/node_`/bin/hostname -s`
 
 if [ "$TEST" = true ]; then
     RUN_PSTEREO="$4"
@@ -57,13 +60,13 @@ if [ "$TEST" = true ]; then
     sa=$10		#if sgm is true, then use 1 for sgm or 2 for mgm
     cm=$11       #cost mode for stereo
 else
+    RUN_PSTEREO="$4"
     subpixk=7
-    rpcdem="$4"
-    RUN_PSTEREO=false
+    rpcdem=$5
 fi
 
 if [ "$ADAPT" = true ]; then
-    out_root=/att/pubrepo/DEM/hrsi_dsm
+    out_root=$NOBACKUP/outASP
     if [ "$TEST" = true ]; then
         out_root=$NOBACKUP/outASP_${testname}
     fi
@@ -247,7 +250,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     #stereo_opts+=" --erode-max-size 150"
     stereo_opts+=" --individually-normalize"
     stereo_opts+=" --tif-compress LZW"
-    #stereo_opts+=" --job-size-w $tile_size --job-size-h $tile_size"
+    stereo_opts+=" --job-size-w $tile_size --job-size-h $tile_size"
 
     if [ ! -z "$crop" ]; then
         stereo_opts+=" --left-image-crop-win $crop"
@@ -294,8 +297,8 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
 
         if [ "$RUN_PSTEREO" = true ] && [ "$ADAPT" = true ] ; then
             echo; echo $stereo_args ; echo
-            echo; echo "parallel_stereo $par_opts $stereo_opts $stereo_args"; echo
-            eval time parallel_stereo -e $e $par_opts $stereo_opts $stereo_args
+            echo; echo "parallel_stereo -e $e --nodes-list $NODES $par_opts $stereo_opts $stereo_args"; echo
+            eval time parallel_stereo -e $e --nodes-list $NODES $par_opts $stereo_opts $stereo_args
             echo; echo "Removing intermediate logs..."
             rm ${out}-log-stereo_parse*.txt
         else
