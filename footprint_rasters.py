@@ -44,6 +44,7 @@ def make_link(pairname, rootDir):
     """
 
     src_tuple = (
+                "24m_hs_az315.tif",\
                 "_color_hs.tif",\
                 "_ortho.tif",\
                 "_ortho_4m.tif",\
