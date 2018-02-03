@@ -69,6 +69,10 @@ def make_link(pairname, rootDir):
                     outDir = os.path.join(rootDir, "_color_hs")
                     dst = os.path.join(outDir, pairname+fyle.split('DEM')[1])
 
+                if "24m_hs_az315.tif" in fyle:
+                    outDir = os.path.join(rootDir, "_hs")
+                    dst = os.path.join(outDir, pairname+fyle.split('DEM')[1])
+
                 if pairname in fyle and "_ortho" in fyle:
                     outDir = os.path.join(rootDir, "_ortho")
                     dst = os.path.join(outDir, pairname+'_ortho'+fyle.split('_ortho')[1])
