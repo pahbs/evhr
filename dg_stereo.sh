@@ -32,7 +32,7 @@ function gettag() {
 
 #Hardcoded Args
 rmfiles=true
-tile_size=8192
+tile_size=16384
 
 TEST=false
 

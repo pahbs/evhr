@@ -44,7 +44,9 @@ def make_link(pairname, rootDir):
     """
 
     src_tuple = (
-                "24m_hs_az315.tif",\
+                "out-DEM_24m_hs_az315.tif",\
+				"out-DEM_4m_hs_az315.tif",\
+				"out-DEM_1m_hs_az315.tif",\
                 "_color_hs.tif",\
                 "_ortho.tif",\
                 "_ortho_4m.tif",\
@@ -70,8 +72,16 @@ def make_link(pairname, rootDir):
                     outDir = os.path.join(rootDir, "_color_hs")
                     dst = os.path.join(outDir, pairname+fyle.split('DEM')[1])
 
-                if "24m_hs_az315.tif" in fyle:
-                    outDir = os.path.join(rootDir, "_hs")
+                if "out-DEM_24m_hs_az315.tif" in fyle:
+                    outDir = os.path.join(rootDir, "_hs","24m")
+                    dst = os.path.join(outDir, pairname+fyle.split('DEM')[1])
+
+                if "out-DEM_4m_hs_az315.tif" in fyle:
+                    outDir = os.path.join(rootDir, "_hs","4m")
+                    dst = os.path.join(outDir, pairname+fyle.split('DEM')[1])
+
+                if "out-DEM_1m_hs_az315.tif" in fyle:
+                    outDir = os.path.join(rootDir, "_hs","1m")
                     dst = os.path.join(outDir, pairname+fyle.split('DEM')[1])
 
                 if pairname in fyle and "_ortho" in fyle:
