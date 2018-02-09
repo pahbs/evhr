@@ -45,9 +45,6 @@ if [ "$ADAPT" = false ]; then
     TEST=false
 fi
 
-echo `/bin/hostname -s` > $HOME/code/node_`/bin/hostname -s`
-NODES=$HOME/code/node_`/bin/hostname -s`
-
 if [ "$TEST" = true ]; then
     RUN_PSTEREO="$4"
     subpixk=$5
@@ -250,7 +247,6 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     #stereo_opts+=" --erode-max-size 150"
     stereo_opts+=" --individually-normalize"
     stereo_opts+=" --tif-compress LZW"
-    stereo_opts+=" --job-size-w $tile_size --job-size-h $tile_size"
 
     if [ ! -z "$crop" ]; then
         stereo_opts+=" --left-image-crop-win $crop"
@@ -285,7 +281,8 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         eval time stereo -e $e $sgm_opts $stereo_args
     else
         # ADAPT processing needs these
-        par_opts="--threads-singleprocess $ncpu"
+        par_opts="--job-size-w $tile_size --job-size-h $tile_size"
+        par_opts+=" --threads-singleprocess $ncpu"
         par_opts+=" --processes $ncpu"
         par_opts+=" --threads-multiprocess 1"
 
@@ -297,8 +294,8 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
 
         if [ "$RUN_PSTEREO" = true ] && [ "$ADAPT" = true ] ; then
             echo; echo $stereo_args ; echo
-            echo; echo "parallel_stereo -e $e --nodes-list $NODES $par_opts $stereo_opts $stereo_args"; echo
-            eval time parallel_stereo -e $e --nodes-list $NODES $par_opts $stereo_opts $stereo_args
+            echo; echo "parallel_stereo -e $e $par_opts $stereo_opts $stereo_args"; echo
+            eval time parallel_stereo -e $e $par_opts $stereo_opts $stereo_args
             echo; echo "Removing intermediate logs..."
             rm ${out}-log-stereo_parse*.txt
         else
