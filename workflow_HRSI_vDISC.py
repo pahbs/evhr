@@ -1,14 +1,4 @@
-# 11/15/2017: Creating this from old edited workflow script to incorporate the new workflow. That is, bulk of proocessing will take place in the dg_stereo.sh script
-#             Also updating to account for new changes in query: new dir structure; input text list of pairs instead of csv
-#             See #n tag, #T for testing
-
-
-
-
-# #!/bin/python
-# #!/usr/bin/env python
-
-#!/usr/local/other/SSSO_Ana-PyD/4.2.0_py2.7_gcc-5.3-sp3/bin/python
+#!/usr/local/other/SLES11.3/miniconda/4.0.5/gcc-5.3-sp3/bin/python
 ###############################################
 # Import and function definitions
 import os, sys, osgeo, time, glob, platform, subprocess as subp
