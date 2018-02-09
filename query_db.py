@@ -16,7 +16,7 @@
 
 # 11/13/2017: NEW: query_db_new.py.
 # Changes:(#n flag)
-#   - No longer inDir and outDir, just ddir: /att/gpfsfs/briskfs01/ppl/mwooten3/Paul_TTE/DSMs/; which will still be separated by batch ON DISCOVER (not ADAPT)
+#   - No longer ASPdir and outDir, just ddir: /att/gpfsfs/briskfs01/ppl/mwooten3/Paul_TTE/DSMs/; which will still be separated by batch ON DISCOVER (not ADAPT)
 #   - getting rid of mapprj stuff
 #   - getting rid of imageDate stuff since it will always be in yyyymmdd in the pairname
 
@@ -91,17 +91,21 @@ def check_pairname_continue(pairname, imageDir, job_script, preLogText): # outAt
 ##
 ##    return (utm_zone, prj, ns, ew)
 
-#def main(csv, inDir, batchID, mapprj=True, doP2D=True, rp=100): #* batchID to keep track of groups of pairs for processing # old way- without argparse
-def main(inTxt, inDir, batchID, noP2D, rp, debug): #the 4 latter args are optional #n vinTxt replaces csv
+#def main(csv, ASPdir, batchID, mapprj=True, doP2D=True, rp=100): #* batchID to keep track of groups of pairs for processing # old way- without argparse
+def main(inTxt, ASPdir, batchID, noP2D, rp, debug): #the 4 latter args are optional #n vinTxt replaces csv
+
 
     start_main = timer() # start timer object for entire batch
 
-    ddir = inDir # for now til we replace all instances of inDir #/att/nobackup/mwooten3/Paul_TTE/ASP
+    baseDir = os.path.dirname(ASPdir.rstrip('/'))
+    # ASPdir is (/att/nobackup/mwooten3/AIST/TTE/ASP)
+    # baseDir is one level up (os.path.dirname(ASPdir.rstrip('/') = /att/nobackup/mwooten3/AIST/TTE/)
+
     # set variables using CL args
     doP2D = not noP2D # doP2D is the opposite of noP2D
     DEMdir = '/att/pubrepo/ASTERGDEM/'
     DISCdir = '/discover/nobackup/projects/boreal_nga' # DISCOVER path, for writing the job scripts
-    batchDir = os.path.join(ddir, 'batch{}'.format(batchID))
+    batchDir = os.path.join(ASPdir, 'batch{}'.format(batchID))
     os.system('mkdir -p {}'.format(batchDir))
 
     ##LogHeaderText = []
@@ -158,7 +162,7 @@ def main(inTxt, inDir, batchID, noP2D, rp, debug): #the 4 latter args are option
     newQtxt = inTxt.replace('q{}.txt'.format(oldQvers), 'q{}.txt'.format(newQvers))
 
     # log ADAPT output for bash
-    logdir = os.path.join(os.path.dirname(ddir.rstrip('/')), 'queryLogs')
+    logdir = os.path.join(baseDir, 'queryLogs')
     os.system('mkdir -p {}'.format(logdir))
     lfile = os.path.join(logdir, 'batch{}_ADAPT_query_log.txt'.format(batchID))
     print "Attempting to process {} pairs for batch {}. See log file for output:\n{}".format(nPairs, batchID, lfile)
@@ -181,7 +185,7 @@ def main(inTxt, inDir, batchID, noP2D, rp, debug): #the 4 latter args are option
     # Set up an output summary CSV that matches input CSV
     # csvOutFile = csv.split(".")[0] + "_output_smry.csv" ##* old way, below is the same thing but more readable
     # set up batch level failure csv. this is where outAtributes will go unless the pair succeeded
-##    summary_csv = os.path.join(os.path.dirname(inDir.rstrip('/')), 'batch_failure_csvs', 'batch%s_failed_pairs.csv' % batchID) # old batch failure script
+##    summary_csv = os.path.join(baseDir, 'batch_failure_csvs', 'batch%s_failed_pairs.csv' % batchID) # old batch failure script
     summary_csv = os.path.join(batchDir, 'batch{}_output_summary.csv'.format(batchID))
     # if summary csv does not exist, create it and write header:
     #if not os.path.isfile(summary_csv):
@@ -191,7 +195,7 @@ def main(inTxt, inDir, batchID, noP2D, rp, debug): #the 4 latter args are option
 ##    with open(summary_csv, 'a') as c: c.write(outHeader)
 
     # also set up text file that will contain list of catIDs that are missing data
-    missing_catID_file = os.path.join(os.path.dirname(inDir.rstrip('/')), 'missing_catID_lists', 'batch{}_missing_catIDs.txt'.format(batchID))
+    missing_catID_file = os.path.join(baseDir, 'missing_catID_lists', 'batch{}_missing_catIDs.txt'.format(batchID))
 ##    print missing_catID_file #T
     n_missing_catIDs = 0 # count starts at 0
     if os.path.isfile(missing_catID_file): os.remove(missing_catID_file) # if this missing cat ID file exists, erase it
@@ -788,15 +792,15 @@ def main(inTxt, inDir, batchID, noP2D, rp, debug): #the 4 latter args are option
     if n_missing_catIDs > 0: print "\n- Wrote {} catIDs to missing catID list {}".format(n_missing_catIDs, missing_catID_file) # only thing we wanna do is print how many files
 
     # copy summary csv to summary_csvs directory:
-    os.system('cp {} {}'.format(summary_csv, os.path.join(os.path.dirname(inDir.rstrip('/')), 'batch_summary_csvs')))
+    os.system('cp {} {}'.format(summary_csv, os.path.join(baseDir, 'batch_summary_csvs')))
 
     # NOW TAR everything in the batchDir into archive
     start_tarzip = timer()
-    archive = os.path.join(inDir, 'batch{}-archive.tar.gz'.format(batchID))
+    archive = os.path.join(ASPdir, 'batch{}-archive.tar.gz'.format(batchID))
     print "\n\n--------------------------------------------\nAttempting to archive data now for entire batch ({} of {} pairs)...".format(n_submitted, nPairs)
     if not os.path.exists(archive): # if data has not yet been tarred up (careful with this)
         print "\n Begin archiving:", datetime.now().strftime("%I:%M%p  %a, %m-%d-%Y")
-        tarComm = 'tar -zcf {} -C {} batch{}'.format(archive, inDir, batchID) #* might not need to change, still wanna get rid of all the way up to batchdir so
+        tarComm = 'tar -zcf {} -C {} batch{}'.format(archive, ASPdir, batchID) #* might not need to change, still wanna get rid of all the way up to batchdir so
         print ' ' + tarComm
         os.system(tarComm)
         print " Finish archiving:", datetime.now().strftime("%I:%M%p  %a, %m-%d-%Y")
@@ -816,8 +820,8 @@ def main(inTxt, inDir, batchID, noP2D, rp, debug): #the 4 latter args are option
     print "\nElapsed time for entire run [queried/copied {} pairs, submitted {} pairs,  {} total pairs]: {} minutes".format(n_pair_copy, n_submitted, nPairs, time_main)
 
     # lastly we need to append to the main processing summary: batchID/date, input csv file, number of pairs attempted, number succeeded, time to zip, total time
-    main_summary = os.path.join(os.path.dirname(inDir.rstrip('/')), 'main_processing_summary.csv') # this is not in Paul_TTE/inASP but in Paul_TTE/
-    print main_summary #T
+    main_summary = os.path.join(baseDir, 'main_processing_summary.csv') # this is not in Paul_TTE/inASP but in Paul_TTE/
+##    print main_summary #T
     with open(main_summary, 'a') as ms:
         ms.write('{}, {}, {}, {}, {}, {}, {}\n'.format(batchID, os.path.abspath(inTxt), n_submitted, nPairs, n_missing_catIDs, time_tarzip, time_main))
 
@@ -829,7 +833,7 @@ if __name__ == '__main__':
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("inTxt", help = "Input text file with pairnames to be queried and processed") #required
-    ap.add_argument("inDir", help = "inASP directory where batch/pair input data will be stored") # required
+    ap.add_argument("ASPdir", help = "inASP directory where batch/pair input data will be stored") # required
     ap.add_argument("batchID", help = "Batch identifier") #required
 ##    ap.add_argument("-mapprj", action='store_true', help="Include -mapprj tag at the command line if you wish to mapproject") # if "-mapprj" is NOT included at the command line, it defaults to False. if it IS, mapprj gets set to True
     ap.add_argument("-noP2D", action='store_true', help="Include -noP2D tag at the command line if you do NOT wish to run P2D") # if "-noP2D" is NOT included at the CL, it defaults to False. doP2D = not noP2D
