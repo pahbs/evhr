@@ -718,23 +718,23 @@ def main(inTxt, inDir, batchID, noP2D, rp, debug): #the 4 latter args are option
             preLogTextFile_DISC = os.path.join(discover_imageDir, os.path.basename(preLogTextFile)) # the path to where it's stored on DISCOVER
 
 
-            # get the pair arguments that we need to send to DISCOVER:
-##            arg1 = '"{}"'.format(line.strip('"').strip().strip('"').strip()) # line is a string arg, remove any and all quotes or spaces then send it in double quotes
-            arg1 = pairname #n #* arg 1 is now pairname. MUST EDIT WORKFLOW to account for this
-##            arg2 = '::join::'.join(header).strip() # header is a list arg
-            arg2 = 'header' #* need to reflext change in the workflow script
-            arg3 = discover_imageDir # imageDir on workflow side #* update workflow
-##            arg4 = mapprj #* update workflow
-            arg5 = 'projection' #prj # temporar placeholder
-            arg6 = 'utm zone' # utm_zone # temp, no longer need
-            arg7 = doP2D
-            arg8 = str(rp)
-            arg9 = preLogTextFile_DISC
-            arg10 = batchID
-
-            arg11 = '::join::'.join(catIDlist)
-            arg12 = '::join::'.join(pIDlist)
-            arg13 = '"{}"'.format(imageDate.strftime("%Y-%m-%d")) # pass along imageDate as dtring in format "yyyy-mm-dd"
+##            # get the pair arguments that we need to send to DISCOVER:
+####            arg1 = '"{}"'.format(line.strip('"').strip().strip('"').strip()) # line is a string arg, remove any and all quotes or spaces then send it in double quotes
+##            arg1 = pairname #n #* arg 1 is now pairname. MUST EDIT WORKFLOW to account for this
+####            arg2 = '::join::'.join(header).strip() # header is a list arg
+##            arg2 = 'header' #* need to reflext change in the workflow script
+##            arg3 = discover_imageDir # imageDir on workflow side #* update workflow
+####            arg4 = mapprj #* update workflow
+##            arg5 = 'projection' #prj # temporar placeholder
+##            arg6 = 'utm zone' # utm_zone # temp, no longer need
+##            arg7 = doP2D
+##            arg8 = str(rp)
+##            arg9 = preLogTextFile_DISC
+##            arg10 = batchID
+##
+##            arg11 = '::join::'.join(catIDlist)
+##            arg12 = '::join::'.join(pIDlist)
+##            arg13 = '"{}"'.format(imageDate.strftime("%Y-%m-%d")) # pass along imageDate as dtring in format "yyyy-mm-dd"
 
             # CHANGE THESE ?:
             job_name = '{}__{}__job'.format(batchID, pairname) # identify job with batchID and pairname??
@@ -750,12 +750,23 @@ def main(inTxt, inDir, batchID, noP2D, rp, debug): #the 4 latter args are option
                 f.write('#SBATCH --nodes={}\n'.format(num_nodes))
                 f.write('#SBATCH --constraint=hasw\n\n')
                 f.write('#SBATCH --time={}\n'.format(time_limit))
-                f.write('#SBATCH --qos=boreal_b0217\n')
-                f.write('#SBATCH --partition=single\n\n')
+
+                f.write('#SBATCH --account=s1861\n')
+                f.write('#SBATCH --partition=single\n')
+                f.write('#SBATCH --qos=boreal_b0217\n\n')
                 f.write('source /usr/share/modules/init/csh\n\n')
-                f.write('unlimit\n')
-                f.write('module load other/comp/gcc-5.3-sp3\n')
-                f.write('module load other/SSSO_Ana-PyD/SApd_4.2.0_py2.7_gcc-5.3-sp3_GDAL\n\n') # 10/17
+                f.write('unlimit\n\n')
+
+                f.write('module load other/asp-2.6.0\n')
+
+                f.write('setenv PATH /discover/nobackup/projects/boreal_nga/code/evhr:${PATH}\n')
+                f.write('setenv PATH /discover/nobackup/projects/boreal_nga/code/dgtools/dgtools:${PATH}\n')
+                f.write('setenv PATH /discover/nobackup/projects/boreal_nga/code/imview/imview:${PATH}\n')
+                f.write('setenv PATH /discover/nobackup/projects/boreal_nga/code/pygeotools/pygeotools:${PATH}\n\n')
+
+                f.write('setenv PYTHONPATH /discover/nobackup/projects/boreal_nga/code/evhr:/discover/nobackup/projects/boreal_nga/code/dgtools:/discover/nobackup/projects/boreal_nga/code/pygeotools:/discover/nobackup/projects/boreal_nga/code/imview\n')
+##                f.write('module load other/comp/gcc-5.3-sp3\n')
+##                f.write('module load other/SSSO_Ana-PyD/SApd_4.2.0_py2.7_gcc-5.3-sp3_GDAL\n\n') # 10/17
     ##            f.write(' \n')
                 f.write('{}\n'.format(python_script_args))
 
@@ -796,9 +807,9 @@ def main(inTxt, inDir, batchID, noP2D, rp, debug): #the 4 latter args are option
         print " Archive {} already exists".format(archive)
         time_tarzip = 0
 
-    #T bloock:
-    print "this might be the new tar/ command:"
-    print 'tar -zcf {} -C {} batch{}'.format(archive, batchDir, batchID)
+##    #T bloock:
+##    print "this might be the new tar/ command:"
+##    print 'tar -zcf {} -C {} batch{}'.format(archive, batchDir, batchID)
 
     end_main = timer()
     time_main = round(find_elapsed_time(start_main, end_main), 3)
