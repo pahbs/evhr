@@ -768,7 +768,7 @@ def main(inTxt, ASPdir, batchID, noP2D, rp, debug): #the 4 latter args are optio
                 f.write('setenv PATH /discover/nobackup/projects/boreal_nga/code/imview/imview:${PATH}\n')
                 f.write('setenv PATH /discover/nobackup/projects/boreal_nga/code/pygeotools/pygeotools:${PATH}\n\n')
 
-                f.write('setenv PYTHONPATH /discover/nobackup/projects/boreal_nga/code/evhr:/discover/nobackup/projects/boreal_nga/code/dgtools:/discover/nobackup/projects/boreal_nga/code/pygeotools:/discover/nobackup/projects/boreal_nga/code/imview\n')
+                f.write('setenv PYTHONPATH /discover/nobackup/projects/boreal_nga/code/evhr:/discover/nobackup/projects/boreal_nga/code/dgtools:/discover/nobackup/projects/boreal_nga/code/pygeotools:/discover/nobackup/projects/boreal_nga/code/imview\n\n')
 ##                f.write('module load other/comp/gcc-5.3-sp3\n')
 ##                f.write('module load other/SSSO_Ana-PyD/SApd_4.2.0_py2.7_gcc-5.3-sp3_GDAL\n\n') # 10/17
     ##            f.write(' \n')
