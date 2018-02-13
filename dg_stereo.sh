@@ -32,7 +32,7 @@ function gettag() {
 
 #Hardcoded Args
 rmfiles=true
-tile_size=16384
+tile_size=20480
 
 TEST=false
 
@@ -63,7 +63,7 @@ else
 fi
 
 if [ "$ADAPT" = true ]; then
-    out_root=$NOBACKUP/outASP
+    out_root=$NOBACKUP/outASP_3DSI
     if [ "$TEST" = true ]; then
         out_root=$NOBACKUP/outASP_${testname}
     fi
