@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#! /usr/bin/env python
 
 # MODIFICATION of proj_select.py
 # This version force selects UTM prj for data in the Arctic (which otherwise would have a stereographic prj selected)
@@ -17,7 +17,7 @@ import sys
 import math
 
 from osgeo import gdal, ogr, osr
-
+import osgeo
 from pygeotools.lib import geolib
 
 def main(argv=None):
