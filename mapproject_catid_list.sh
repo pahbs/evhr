@@ -34,21 +34,24 @@ if [ "$ADAPT" = true ] ; then
     done
 
     # Do the ADAPT db querying in parallel before any other processing
-    eval parallel --delay 2 -verbose -j 20 ::: $cmd_list
+    #eval parallel --delay 2 -verbose -j 20 ::: $cmd_list
 
     # Loop over catid list again, do processing
     for catid in $list_catid ; do
+        
         cd ${main_dir}/${catid}
-        # ---FOR NOW -- only correct and mosaic P1BS data
-        ntfmos.sh ${main_dir}/${catid}
+        if [ ! -e ${main_dir}/${catid}/${catid}_ortho_rpc.tif ] ; then
+            # ---FOR NOW -- only correct and mosaic P1BS data
+            #ntfmos.sh ${main_dir}/${catid}
 
-        mapproject_fill.py ${catid}.r100.tif $rpcdem
-
+            mapproject_fill.py ${main_dir}/${catid}/${catid}.r100.tif $rpcdem
+        fi
+        gdaladdo -ro -r average ${main_dir}/${catid}/${catid}_ortho_rpc.tif 2 4 8 16 32 64
     done
 
 
 else
-    echo; echo "HTis workflow not running on ADAPT."; echo
+    echo; echo "This workflow not running on ADAPT."; echo
 fi
 
 t_end=$(date +%s)

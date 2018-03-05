@@ -57,13 +57,16 @@ if [ "$TEST" = true ]; then
     sa=$10		#if sgm is true, then use 1 for sgm or 2 for mgm
     cm=$11       #cost mode for stereo
 else
-    RUN_PSTEREO="$4"
     subpixk=7
-    rpcdem=$5
+    RUN_PSTEREO="$4"
+    #adapt_batch_name=$5
+    out_dir=$5
+    rpcdem=$6
 fi
 
 if [ "$ADAPT" = true ]; then
-    out_root=$NOBACKUP/outASP_3DSI
+    #out_root=$NOBACKUP/outASP/${adapt_batch_name}
+    out_root=$out_dir
     if [ "$TEST" = true ]; then
         out_root=$NOBACKUP/outASP_${testname}
     fi
@@ -139,7 +142,7 @@ if [ ! -e $in_left ] || [ ! -e $in_right  ] ; then
 
             # Do the ADAPT db querying in parallel
         
-            eval parallel --delay 2 -verbose -j 2 ::: $cmd_list
+            #eval parallel --delay 2 -verbose -j 2 ::: $cmd_list
         else
             echo; echo "Workflow not running on ADAPT, querying for input already done."; echo
         fi
@@ -163,7 +166,7 @@ else
 fi
 
 # Get proj from XML
-if [ "$ADAPT" = true ] ; then
+if [ "$ADAPT" = true ] && [ "$MAP" = true ] ; then
     echo; echo "Determine RPCDEM prj used to mapproject input prior to stereo ..."
     proj_rpcdem=$(proj_select.py ${rpcdem})
 fi
@@ -190,12 +193,12 @@ if [ $(echo "a=($res1 < $res2); a" | bc -l) -eq 1 ] ; then
     native_res=$res1
     echo "Native res is from $left_catid : ${native_res}"
     mos4ortho_img=$in_left
-    mos4ortho_catid=$in_left_catid
+    mos4ortho_catid=$left_catid
 else
     native_res=$res2
     echo "Native res is from $right_catid : ${native_res}"
     mos4ortho_img=$in_right
-    mos4ortho_catid=$in_right_catid
+    mos4ortho_catid=$right_catid
 fi
 
 if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
@@ -416,14 +419,19 @@ else
         else
             # This case exists to handle pairname dirs that dont have *.r100.tif; so, for each ntf run mapprj then use dem_mosaic
             echo; echo "Mapproject each indiv NTF onto ${stats_dem}"; echo
-            echo; echo "Get ADAPT dir with imagery to mapproject"; echo
-
-            mos4ortho_catid_dir="$(query_db_catid.py ${mos4ortho_catid} -out_dir ${out_root}/${pairname})"
-            ntf_list=$(ls $mos4ortho_catid_dir | grep -e "${mos4ortho_catid}" | grep -i P1BS | egrep 'ntf|tif' | grep -v 'corr')
+            echo "CATID: ${mos4ortho_catid}"
+            ntf_list=$(ls ${out_root}/${pairname} | grep -e "${mos4ortho_catid}" | grep -i P1BS | egrep 'ntf|tif' | grep -v 'corr')
+            
+            if [ ! "$ntf_list" ] && [ "$ADAPT" = true ]  ; then
+                 echo; echo "Get ADAPT dir with imagery to mapproject"; echo
+                 query_db_catid.py ${mos4ortho_catid} -out_dir ${out_root}/${pairname})
+                 ntf_list=$(ls ${out_root}/${pairname} | grep -e "${mos4ortho_catid}" | grep -i P1BS | egrep 'ntf|tif' | grep -v 'corr')
+            fi
 
             cmd_list=''
+
             for ntf in $ntf_list ; do
-                ntf_fn=${mos4ortho_catid_dir}/${ntf}
+                ntf_fn=${out_root}/${pairname}/${ntf}
                 indiv_ortho=${out_root}/${pairname}/${ntf%.*}${ortho_ext}
                 map_args="$stats_dem ${ntf_fn} ${ntf_fn%.*}.xml $indiv_ortho"
     	        echo $ntf_fn
@@ -431,6 +439,7 @@ else
     	        cmd+="time mapproject $map_opts $map_args; "
                 cmd_list+=\ \'$cmd\'
             done
+
             echo; echo "Do orthos for each P1BS scene running mapproject in parallel"; echo
             eval parallel -verbose -j 6 ::: $cmd_list
 
