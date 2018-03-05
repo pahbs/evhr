@@ -753,11 +753,12 @@ def main(inTxt, ASPdir, batchID, noP2D, rp, debug): #the 4 latter args are optio
                 f.write('#SBATCH --job-name={}\n'.format(job_name))
                 f.write('#SBATCH --nodes={}\n'.format(num_nodes))
                 f.write('#SBATCH --constraint=hasw\n\n')
-                f.write('#SBATCH --time={}\n'.format(time_limit))
 
+                f.write('#SBATCH --time={}\n'.format(time_limit))
                 f.write('#SBATCH --account=s1861\n')
                 f.write('#SBATCH --partition=single\n')
                 f.write('#SBATCH --qos=boreal_b0217\n\n')
+
                 f.write('source /usr/share/modules/init/csh\n\n')
                 f.write('unlimit\n\n')
 
