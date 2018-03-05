@@ -94,6 +94,7 @@ def check_pairname_continue(pairname, imageDir, job_script, preLogText): # outAt
 #def main(csv, ASPdir, batchID, mapprj=True, doP2D=True, rp=100): #* batchID to keep track of groups of pairs for processing # old way- without argparse
 def main(inTxt, ASPdir, batchID, noP2D, rp, debug): #the 4 latter args are optional #n vinTxt replaces csv
 
+    test = False # set test to True if we want to run a test, which will not skip the pair if it's already in the hrsi_dsms directory on pubrepo
 
     start_main = timer() # start timer object for entire batch
 
@@ -265,8 +266,9 @@ def main(inTxt, ASPdir, batchID, noP2D, rp, debug): #the 4 latter args are optio
         # pairnameContinue
 
         # TEST 1/29/18: only editing this below (and commenting the line above) so we can send these test pairs to DISCOVER for comparison
-        alreadyProcessed = False
-        queryCopyPair = True
+        if test:
+            alreadyProcessed = False
+            queryCopyPair = True
 
 
         if alreadyProcessed: # if the pairname was already processed all the way through (in a previous batch) skip the pair (after writing outAttributes to csv summary)
