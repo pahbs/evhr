@@ -461,9 +461,9 @@ def main(inTxt, ASPdir, batchID, noP2D, rp, debug): #the 4 latter args are optio
 
                 # write pairname to new query list, not line #1/29/18
                 # now write to input line of the missingData pair to the new query csv. but first, if it doesnt exist. write the header
-                if not os.path.exists(newQtxt):
-                    with open(newQtxt, 'w') as nq:
-                        nq.write(hdr)
+##                if not os.path.exists(newQtxt):
+##                    with open(newQtxt, 'w') as nq:
+##                        nq.write(hdr)
                 with open(newQtxt, 'a') as nq:
                     nq.write(pairname)
 
@@ -595,9 +595,9 @@ def main(inTxt, ASPdir, batchID, noP2D, rp, debug): #the 4 latter args are optio
 
                 # write pairname not line
                 # now write to input line of the missingData pair to the new query csv. but first, if it doesnt exist. write the header
-                if not os.path.exists(newQtxt):
-                    with open(newQtxt, 'w') as nq:
-                        nq.write(hdr)
+##                if not os.path.exists(newQtxt):
+##                    with open(newQtxt, 'w') as nq:
+##                        nq.write(hdr)
                 with open(newQtxt, 'a') as nq:
                     nq.write(pairname)
 
@@ -751,7 +751,7 @@ def main(inTxt, ASPdir, batchID, noP2D, rp, debug): #the 4 latter args are optio
 
             # slurm.j file (calls the python code in discover for just one pair)
             with open(job_script, 'wb') as f:
-                f.write('#!/bin/csh -f\n')
+                f.write('#!/bin/bash -f\n')
                 f.write('#SBATCH --job-name={}\n'.format(job_name))
                 f.write('#SBATCH --nodes={}\n'.format(num_nodes))
                 f.write('#SBATCH --constraint=hasw\n\n')
@@ -761,17 +761,16 @@ def main(inTxt, ASPdir, batchID, noP2D, rp, debug): #the 4 latter args are optio
                 f.write('#SBATCH --partition=single\n')
                 f.write('#SBATCH --qos=boreal_b0217\n\n')
 
-                f.write('source /usr/share/modules/init/csh\n\n')
-                f.write('unlimit\n\n')
+                f.write('source /usr/share/modules/init/bash\n\n')
+                f.write('module load other/asp-2.6.0\n\n')
+                f.write('ulimit -a\n\n') # prob dont need. keep for now
 
-                f.write('module load other/asp-2.6.0\n')
+                f.write('export PATH=/discover/nobackup/projects/boreal_nga/code/evhr:${PATH}\n')
+                f.write('export PATH=/discover/nobackup/projects/boreal_nga/code/dgtools/dgtools:${PATH}\n')
+                f.write('export PATH=/discover/nobackup/projects/boreal_nga/code/imview/imview:${PATH}\n')
+                f.write('export PATH=/discover/nobackup/projects/boreal_nga/code/pygeotools/pygeotools:${PATH}\n\n')
 
-                f.write('setenv PATH /discover/nobackup/projects/boreal_nga/code/evhr:${PATH}\n')
-                f.write('setenv PATH /discover/nobackup/projects/boreal_nga/code/dgtools/dgtools:${PATH}\n')
-                f.write('setenv PATH /discover/nobackup/projects/boreal_nga/code/imview/imview:${PATH}\n')
-                f.write('setenv PATH /discover/nobackup/projects/boreal_nga/code/pygeotools/pygeotools:${PATH}\n\n')
-
-                f.write('setenv PYTHONPATH /discover/nobackup/projects/boreal_nga/code/evhr:/discover/nobackup/projects/boreal_nga/code/dgtools:/discover/nobackup/projects/boreal_nga/code/pygeotools:/discover/nobackup/projects/boreal_nga/code/imview\n\n')
+                f.write('export PYTHONPATH=/discover/nobackup/projects/boreal_nga/code/evhr:/discover/nobackup/projects/boreal_nga/code/dgtools:/discover/nobackup/projects/boreal_nga/code/pygeotools:/discover/nobackup/projects/boreal_nga/code/imview\n\n')
 ##                f.write('module load other/comp/gcc-5.3-sp3\n')
 ##                f.write('module load other/SSSO_Ana-PyD/SApd_4.2.0_py2.7_gcc-5.3-sp3_GDAL\n\n') # 10/17
     ##            f.write(' \n')
