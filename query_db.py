@@ -747,7 +747,7 @@ def main(inTxt, ASPdir, batchID, noP2D, rp, debug): #the 4 latter args are optio
             time_limit = '6-00:00:00'
             num_nodes = '1'
             python_script_args = 'python {} {} {} {} {}'.format(os.path.join(DISCdir, 'code', 'evhr', workflowCodeName), pairname, batchID, os.path.join(DISCdir, 'ASP'), preLogTextFile_DISC)
-            print python_script_args #T
+            #print python_script_args #T
 
             # slurm.j file (calls the python code in discover for just one pair)
             with open(job_script, 'wb') as f:
