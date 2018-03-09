@@ -98,14 +98,14 @@ def run_asp(
 
     #* check for the final ovr file and if it exists, add pair to list
     finalFile = os.path.join(imageDir, '{}_ortho.tif.ovr'.format(pairname))
-    print finalFile #T
+##    print finalFile #T
     if os.path.isfile(finalFile):
         comp_pair_dir = os.path.join(ddir, 'batchSummary')
         os.system('mkdir -p {}'.format(comp_pair_dir))
         completed_pairs_txt = os.path.join(comp_pair_dir, 'batch{}_completedPairs.txt'.format(batchID))
         with open (completed_pairs_txt, 'a') as cp:
             cp.write('{}\n'.format(pairname))
-
+    else: print " Final ovr file ({}) does not exist. Something went wrong, please check the log.".format(finalFile)
     end_main = timer()
     total_time = find_elapsed_time(start_main, end_main)
 
@@ -113,9 +113,13 @@ def run_asp(
     # then print batchID, pairname, total_time (minutes and hours) to csv
 ##    strip1size = round(os.path.getsize(fullPathStrips[0])/1024.0/1024/1024, 3) #* PC_tif here instead
 ##    strip2size = round(os.path.getsize(fullPathStrips[1])/1024.0/1024/1024, 3)
+    # get the size of the out-PC file:
+    outPC = os.path.join(imageDir, 'out-PC.tif')
+    PCsize_GB = round(os.path.getsize(outPC)/1024.0/1024/1024, 3)
+
     run_times_csv = os.path.join(ddir, 'run_times.csv')
     with open(run_times_csv, 'a') as rt:
-        rt.write('{}, {}, {}, {}, {}, {}\n'.format(batchID, pairname, total_time, (total_time/60), 'PC size goes here', nodeName))
+        rt.write('{}, {}, {}, {}, {}, {}\n'.format(batchID, pairname, total_time, (total_time/60), PCsize_GB, nodeName))
 
     print("\n\n-----------------------------")
     print("\n\t ")
@@ -126,15 +130,15 @@ def run_asp(
     print("-----------------------------\n\n")
 
 
-    # try to close the out/err files-- http://stackoverflow.com/questions/7955138/addressing-sys-excepthook-error-in-bash-script
-    try:
-        sys.stdout.close()
-    except:
-        pass
-    try:
-        sys.stderr.close()
-    except:
-        pass
+##    # try to close the out/err files-- http://stackoverflow.com/questions/7955138/addressing-sys-excepthook-error-in-bash-script
+##    try:
+##        sys.stdout.close()
+##    except:
+##        pass
+##    try:
+##        sys.stderr.close()
+##    except:
+##        pass
 
 
 if __name__ == "__main__":
