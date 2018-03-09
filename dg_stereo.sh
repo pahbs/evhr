@@ -142,7 +142,7 @@ if [ ! -e $in_left ] || [ ! -e $in_right  ] ; then
 
             # Do the ADAPT db querying in parallel
         
-            #eval parallel --delay 2 -verbose -j 2 ::: $cmd_list
+            eval parallel --delay 2 -verbose -j 2 ::: $cmd_list
         else
             echo; echo "Workflow not running on ADAPT, querying for input already done."; echo
         fi
@@ -424,7 +424,7 @@ else
             
             if [ ! "$ntf_list" ] && [ "$ADAPT" = true ]  ; then
                  echo; echo "Get ADAPT dir with imagery to mapproject"; echo
-                 query_db_catid.py ${mos4ortho_catid} -out_dir ${out_root}/${pairname})
+                 query_db_catid.py ${mos4ortho_catid} -out_dir ${out_root}/${pairname}
                  ntf_list=$(ls ${out_root}/${pairname} | grep -e "${mos4ortho_catid}" | grep -i P1BS | egrep 'ntf|tif' | grep -v 'corr')
             fi
 
