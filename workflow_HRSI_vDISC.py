@@ -5,7 +5,7 @@ import os, sys, osgeo, time, glob, platform, subprocess as subp
 from timeit import default_timer as timer
 from time import gmtime, strftime
 
-def find_elapsed_time(start, end): # take two timer() objects and find elapsed time between them
+def find_elapsed_time(start, end): # take two timer() objects and find elapsed time between them, in minutes
     elapsed_min = (end-start)/60
     return float(elapsed_min)
 
@@ -74,9 +74,9 @@ def run_asp(
 
 
     # now call the script
-    print "Calling {} to perform stereo...\n\n".format(stereoCode)
+    print "Calling {} to perform stereo...".format(stereoCode)
+    print " Parameters: {} false false {}\n\n".format(pairname, batchDir)
     command = 'bash {} {} false false {}'.format(stereoCode, pairname, batchDir) # false for ADAPT and false for MAP
-    print command #T
     #subp.check_output([command])
     os.system(command) # try this for now
 

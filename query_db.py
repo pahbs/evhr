@@ -751,7 +751,7 @@ def main(inTxt, ASPdir, batchID, noP2D, rp, debug): #the 4 latter args are optio
 
             # slurm.j file (calls the python code in discover for just one pair)
             with open(job_script, 'wb') as f:
-                f.write('#!/bin/bash -f\n')
+                f.write('#!/bin/bash -f\n\n')
                 f.write('#SBATCH --job-name={}\n'.format(job_name))
                 f.write('#SBATCH --nodes={}\n'.format(num_nodes))
                 f.write('#SBATCH --constraint=hasw\n\n')
