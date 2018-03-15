@@ -269,6 +269,15 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                         print ''
                         print selected_list
                         print ''
+                        print selected[0]
+                        print ''
+                        for s in selected:
+                            print s
+                            print s[0]
+                            try:
+                                print s[0][0]
+                            except:
+                                pass
 
 
             if debug: sys.exit() #rm 03/15/18
