@@ -266,19 +266,29 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                         print catID
                         print pID
                         print selected
+                        print len(selected)
                         print ''
-                        print selected_list
-                        print ''
+##                        print selected_list
+##                        print ''
                         print selected[0]
                         print ''
-                        for s in selected:
-                            print s
-                            print s[0]
-                            try:
-                                print s[0][0]
-                            except:
-                                pass
-
+##                        for s in selected:
+##                            print s
+##                            print s[0]
+##                            try:
+##                                print s[0][0]
+##                            except:
+##                                pass
+                        selected_filtered = [s for s in selected if os.path.basename(s[0]).split('-')[2].split('_')[0] == pID]
+                        print selected_filtered
+                        print len(selected_filtered)
+                        print '\nBefore filter:'
+                        for s in selected: print os.path.basename(s[0])
+                        print len(selected)
+                        print '\nafter filter:'
+                        for s in selected_filtered: print os.path.basename(s[0])
+                        print len(selected_filtered)
+                        print '-----\n'
 
             if debug: sys.exit() #rm 03/15/18
 
