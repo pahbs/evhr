@@ -264,7 +264,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                     selected_list[num] = selected # selected list is a list of len 2, where the first index contains the matching files from the first catID, and second index contains from second catID
                     if debug: #rm 03/15/18
                         print catID
-                        print PID
+                        print pID
                         print selected
                         print selected_list
 
