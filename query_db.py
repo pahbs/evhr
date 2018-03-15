@@ -235,15 +235,12 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                     preLogText.append( "\n   -Found '{}' scenes for catID '{}' ".format(len(selected),catID))
 
                     # Get info from first item returned
-                    #
-                    #
+
                     if len(selected) == 0:
                         found_catID[num] = False
                         print "   -No data found for catID {}. Writing to missing catID text file".format(catID)
                         #missing_catIDs.append(catID)
                         # we can just assume we will never run batch more than once when we get shit figured out
-    ##                    write_method = 'a' # assume we are appending the file
-    ##                    if n_missing_catIDs == 0: write_method = 'w' # unless we havent yet found any missing catIDs yet this time around running the batch, in which case we wanna overwrite output file
 
                         with open(missing_catID_file, 'a') as mf:
                             mf.write(catID +'\n')
@@ -265,7 +262,14 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                     pIDlist[num] = pID
                     found_catID[num] = True
                     selected_list[num] = selected # selected list is a list of len 2, where the first index contains the matching files from the first catID, and second index contains from second catID
+                    if debug: #rm 03/15/18
+                        print catID
+                        print PID
+                        print selected
+                        print selected_list
 
+
+            if debug: sys.exit() #rm 03/15/18
 
             #if len(catIDlist) == 0: ##** if neither of the catIDs returned data
             #* 2/24 the above won't work because catIDlist will at least be [XXXXXX, XXXXXX]
