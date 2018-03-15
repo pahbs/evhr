@@ -263,35 +263,37 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                     pIDlist[num] = pID
                     found_catID[num] = True
                     selected_filtered = [s for s in selected if os.path.basename(s[0]).split('-')[2].split('_')[0] == pID] # filter selected based on pID
+                    print "   -Have {} scenes after filtering based on pID {}".format(len(selected_filtered), pID)
                     selected_list[num] = selected_filtered # selected list is a list of len 2, where the first index contains the matching files from the first catID, and second index contains from second catID
                     if debug: #rm 03/15/18
-                        print catID
+##                        print catID
                         print pID
-                        print selected
-                        print len(selected)
-                        print ''
-##                        print selected_list
+##                        print selected
+##                        print len(selected)
 ##                        print ''
-                        print selected[0]
-                        print ''
-##                        for s in selected:
-##                            print s
-##                            print s[0]
-##                            try:
-##                                print s[0][0]
-##                            except:
-##                                pass
-                        selected_filtered = [s for s in selected if os.path.basename(s[0]).split('-')[2].split('_')[0] == pID]
-                        print selected_filtered
-                        print len(selected_filtered)
-                        print '\nBefore filter:'
-                        for s in selected: print os.path.basename(s[0])
-                        print len(selected)
-                        print '\nafter filter:'
-                        for s in selected_filtered: print os.path.basename(s[0])
-                        print len(selected_filtered)
-                        print '-----\n'
-                        print selected_list
+####                        print selected_list
+####                        print ''
+##                        print selected[0]
+##                        print ''
+####                        for s in selected:
+####                            print s
+####                            print s[0]
+####                            try:
+####                                print s[0][0]
+####                            except:
+####                                pass
+##                        selected_filtered = [s for s in selected if os.path.basename(s[0]).split('-')[2].split('_')[0] == pID]
+##                        print selected_filtered
+##                        print len(selected_filtered)
+##                        print '\nBefore filter:'
+##                        for s in selected: print os.path.basename(s[0])
+##                        print len(selected)
+##                        print '\nafter filter:'
+##                        for s in selected_filtered: print os.path.basename(s[0])
+##                        print len(selected_filtered)
+##                        print '-----\n'
+                        print len(selected_list[0])
+                        print len(selected_list[1])
                     if debug: print "    Selected list (after pID filtering): {}".format(selected_filtered)
 
             if debug: sys.exit() #rm 03/15/18
