@@ -249,7 +249,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
 
                     # only want to print number of scenes found if there were scenes found
                     print "   -Found {} scenes".format(len(selected))
-                    if debug: print "    Selected list: {}".format(selected)
+                    if debug: print "    Selected list (before pID filtering): {}".format(selected)
                     ##** removed else here because continue should take care of the flow
 
                     ##** moved this following block from down below
@@ -259,9 +259,11 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                     """
                     catIDlist[num] = catID
                     pID = os.path.split(os.path.split(selected[0][0])[0])[1].split('_')[-2] # get pID from first entry in selected
+                    print os.path.basename(selected[0][0]).split('-')[2].split('_')[0]
                     pIDlist[num] = pID
                     found_catID[num] = True
-                    selected_list[num] = selected # selected list is a list of len 2, where the first index contains the matching files from the first catID, and second index contains from second catID
+                    selected_filtered = [s for s in selected if os.path.basename(s[0]).split('-')[2].split('_')[0] == pID] # filter selected based on pID
+                    selected_list[num] = selected_filtered # selected list is a list of len 2, where the first index contains the matching files from the first catID, and second index contains from second catID
                     if debug: #rm 03/15/18
                         print catID
                         print pID
@@ -289,11 +291,12 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                         for s in selected_filtered: print os.path.basename(s[0])
                         print len(selected_filtered)
                         print '-----\n'
+                        print selected_list
+                    if debug: print "    Selected list (after pID filtering): {}".format(selected_filtered)
 
             if debug: sys.exit() #rm 03/15/18
 
-            #if len(catIDlist) == 0: ##** if neither of the catIDs returned data
-            #* 2/24 the above won't work because catIDlist will at least be [XXXXXX, XXXXXX]
+
             if found_catID.count(False) == 2: # if both values of found_catID are False, no data was found
 
                 # took out try statement to get month/year/date from imageDate and put it before if queryCopyPair:. It will be the same thing here even though it's moved up
