@@ -258,45 +258,17 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                     This is a 2 element list holding the catid of the left and the right strip
                     """
                     catIDlist[num] = catID
-                    pID = os.path.split(os.path.split(selected[0][0])[0])[1].split('_')[-2] # get pID from first entry in selected
-                    print os.path.basename(selected[0][0]).split('-')[2].split('_')[0]
+                    pID = os.path.basename(selected[0][0]).split('-')[2].split('_')[0] # same thing: os.path.split(os.path.split(selected[0][0])[0])[1].split('_')[-2] # get pID from first entry in selected
                     pIDlist[num] = pID
                     found_catID[num] = True
                     selected_filtered = [s for s in selected if os.path.basename(s[0]).split('-')[2].split('_')[0] == pID] # filter selected based on pID
                     print "   -Have {} scenes after filtering based on pID {}".format(len(selected_filtered), pID)
+                    preLogText.append( "\n   -Have {} scenes after filtering based on pID {}".format(len(selected_filtered), pID))
                     selected_list[num] = selected_filtered # selected list is a list of len 2, where the first index contains the matching files from the first catID, and second index contains from second catID
-                    if debug: #rm 03/15/18
-##                        print catID
-                        print pID
-##                        print selected
-##                        print len(selected)
-##                        print ''
-####                        print selected_list
-####                        print ''
-##                        print selected[0]
-##                        print ''
-####                        for s in selected:
-####                            print s
-####                            print s[0]
-####                            try:
-####                                print s[0][0]
-####                            except:
-####                                pass
-##                        selected_filtered = [s for s in selected if os.path.basename(s[0]).split('-')[2].split('_')[0] == pID]
-##                        print selected_filtered
-##                        print len(selected_filtered)
-##                        print '\nBefore filter:'
-##                        for s in selected: print os.path.basename(s[0])
-##                        print len(selected)
-##                        print '\nafter filter:'
-##                        for s in selected_filtered: print os.path.basename(s[0])
-##                        print len(selected_filtered)
-##                        print '-----\n'
-                        print len(selected_list[0])
-                        print len(selected_list[1])
-                    if debug: print "    Selected list (after pID filtering): {}".format(selected_filtered)
-
-            if debug: sys.exit() #rm 03/15/18
+                    if debug:
+                        print "    Selected list (after pID filtering): {}".format(selected_filtered)
+                        print '    Number of filtered scenes, side 1: {}'.format(len(selected_list[0]))
+                        print '    Number of filtered scenes, side 2: {}'.format(len(selected_list[1]))
 
 
             if found_catID.count(False) == 2: # if both values of found_catID are False, no data was found
@@ -358,7 +330,6 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                 with open(newQtxt, 'a') as nq:
                     nq.write('{}\n'.format(pairname))
 
-                #* 1/17 print "\n\tMissing a catalog_id, can't do stereogrammetry." was how it was done in the workflow script
                 preLogText.append("\n   One of the catIDs does not have data in our archive for pair {}\n\n".format(pairname))
                 print "One of the catIDs returned no data from our query. Moving to next pair\n"
                 continue ##* move on to the next pair
@@ -368,14 +339,12 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
             print "  Elapsed time to query pair {}: {} minutes\n".format(pairname, time_query)
 
             start_copy = timer()
-            #** we will only get to this point if there is data for both catIDs- ##Q is that OK?
-            # now that we have data for both, loop thru the strips again
+            # we will only get to this point if there is data for both catIDs
             pair_data_exists = [False, False] # keeps track of whether scene data for either catID exists in ADAPT or not
             for num, catID in enumerate([catID_1,catID_2]):
 
                 print "  Copying data for catalog ID {}".format(catID) # print to ADAPT log
-                # retrieve list of scenes for catID
-                selected = selected_list[num]
+                selected = selected_list[num] # retrieve list of scenes for catID
 
                 # get lat long and path from first
                 lat= float(selected[0][3])
@@ -390,20 +359,9 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                 preLogText.append("    Center Lat: {}".format(lat))
                 preLogText.append("    Center Lon: {}".format(lon))
 
-                # [4.1] Make imageDir ##** only want to do this if both pairs exist
-
                 """
-                this dir holds the sym links to the NTF files that will form both strips for the stereo run
-                nobackup\mwooten\inASP\WV01_20130604_catid1_catid2\
-                    sym link to raw scene in this dir
+                [4.1] Make imageDir and COPY data from archive to ADAPT
                 """
-                #   into which you'll direct the symbolic link inputs and store intermediate mosaics
-                #   Return date from first row (formatted for filename)
-                """
-                already got the necessary info above
-                """
-                # COPY data from archive to ADAPT
-
                 os.system('mkdir -p {}'.format(imageDir))
                 preLogText.append("\n    Moving data from NGA database to {}".format(imageDir))
 
@@ -471,7 +429,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
 
                 # write pairname
                 with open(newQtxt, 'a') as nq:
-                    nq.write(pairname)
+                    nq.write('{}\n'.format(pairname))
 
                 # write out attributes to failue csv
                 #outAttributes = batchID + "," + pairname + "," + str(found_catID[0]) + "," + str(found_catID[1]) + "," + str(mapprj) + "," + str(year) + "," + str(month) + "," + str(avSunElev)+ "," + str(avSunAz) + "," + str(avOffNadir) + "," + str(avTargetAz) + "," + str(avSatAz) + "," +str(conv_ang) + "," + str(bie_ang) + "," + str(asym_ang) + ", data does not exist on ADAPT\n"
@@ -527,9 +485,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                 f.write('export PATH=/discover/nobackup/projects/boreal_nga/code/pygeotools/pygeotools:${PATH}\n\n')
 
                 f.write('export PYTHONPATH=/discover/nobackup/projects/boreal_nga/code/evhr:/discover/nobackup/projects/boreal_nga/code/dgtools:/discover/nobackup/projects/boreal_nga/code/pygeotools:/discover/nobackup/projects/boreal_nga/code/imview\n\n')
-##                f.write('module load other/comp/gcc-5.3-sp3\n')
-##                f.write('module load other/SSSO_Ana-PyD/SApd_4.2.0_py2.7_gcc-5.3-sp3_GDAL\n\n') # 10/17
-    ##            f.write(' \n')
+
                 f.write('{}\n'.format(python_script_args))
 
         # if we get here we know: pair was either alreadyQueried (and is sent to processing) or was just queried. either way, write to summary csv;; also know found catID is True
