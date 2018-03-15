@@ -266,7 +266,9 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                         print catID
                         print pID
                         print selected
+                        print ''
                         print selected_list
+                        print ''
 
 
             if debug: sys.exit() #rm 03/15/18
