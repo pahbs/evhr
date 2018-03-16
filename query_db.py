@@ -158,7 +158,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
         start_pair = timer()
 
         pair_count += 1
-        print "\nAttemping to query and copy data for pair {} of {}:\n".format(pair_count, nPairs) # print to ADAPT screen
+        print "\nAttempting to query and copy data for pair {} of {} ({}):\n".format(pair_count, nPairs, pair) # print to ADAPT screen
         #print line
 
         preLogText = [] # start over with new preLog everytime you go to another pair
