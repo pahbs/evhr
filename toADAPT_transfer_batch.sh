@@ -17,8 +17,24 @@ printf "\nCopying archive to ADAPT with rsync:\n\n"
 printf "START: "
 #start_date=date
 date
-#printf "\n"
-cmd="nohup rsync -avxH -R --progress ${batchdir}/./*/*txt ${batchdir}/./*/*.xml ${batchdir}/./*/*ortho*.tif ${batchdir}/./*/*.ovr ${batchdir}/./*/*out-DEM* ${batchdir}/./*/out-PC.tif dsclogin.sci.gsfc.nasa.gov:/att/nobackup/mwooten3/TTE/test_rsync"#/att/pubrepo/DEM/hrsi_dsm/test_rsync"
+cd ${batchdir}
+printf "\n Current directory:"
+pwd
+printf "\n"
+
+cmd="rsync -avxHR --progress --exclude '*/*r100.xml' */*txt */*.xml */*ortho*.tif */*.ovr */*out-DEM* */out-PC.tif dsclogin.sci.gsfc.nasa.gov:/att/nobackup/mwooten3/AIST/TTE/test_rsync" #/att/pubrepo/DEM/hrsi_dsm/test_rsync"
+
+#cd ${batchdir}
+#pwd
+
+#for d in * ; do
+#    echo "$d"
+#    cmd="rsync -avxH -R -p --progress ${d}/out-PC.tif dsclogin.sci.gsfc.nasa.gov:/att/nobackup/mwooten3/TTE/test_rsync"
+#    echo $cmd
+#    eval $cmd
+#done
+
+
 printf " $cmd\n\n"
 eval $cmd
 printf "\n\nEND: "
