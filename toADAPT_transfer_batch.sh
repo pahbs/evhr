@@ -3,7 +3,7 @@
 batch=$1 # only command line argument is batch
 
 logfile="/discover/nobackup/projects/boreal_nga/batchSummary/batch${batch}_transferToADAPT_log.txt"
-batchdir = "/discover/nobackup/projects/boreal_nga/ASP/batch${batch}"
+batchdir="/discover/nobackup/projects/boreal_nga/ASP/batch${batch}"
 
 printf "\nCopying results from DISCOVER to ADAPT with rsync. Output can be found in:\n$logfile\n\n"
 
