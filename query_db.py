@@ -413,7 +413,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                 if debug: continue # don't actually copy data
 
                 if scene_exist_cnt == 0: # if no data was found in the NGA database for catID
-                    print "No data was found in ADAPT archive for pair {}. Skipping to next catID\n\n"
+                    print "No data was found in ADAPT archive for pair {}. Skipping to next catID\n\n".format(pairname)
                     continue
                 else:
                     pair_data_exists[num] = True # set catID side to True since scenes do exist
@@ -520,7 +520,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
         print " Finish archiving:", datetime.now().strftime("%I:%M%p  %a, %m-%d-%Y")
         end_tarzip = timer()
         time_tarzip = round(find_elapsed_time(start_tarzip, end_tarzip),3)
-        print "Elapsed time for tarring/zipping {} pairs: {} minutes".format(n_pair_copy, time_tarzip)
+        print "Elapsed time for tarring/zipping {} pairs: {} minutes".format(n_submitted, time_tarzip)
     else:
         print " Archive {} already exists".format(archive)
         time_tarzip = 0
