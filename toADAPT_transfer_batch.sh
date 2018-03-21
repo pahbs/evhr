@@ -22,7 +22,7 @@ printf "\n Current directory:"
 pwd
 printf "\n"
 
-cmd="rsync -avxHR --progress --exclude '*/*r100.xml' */*txt */*.xml */*ortho*.tif */*.ovr */*out-DEM* */out-PC.tif dsclogin.sci.gsfc.nasa.gov:/att/nobackup/mwooten3/AIST/TTE/test_rsync" #/att/pubrepo/DEM/hrsi_dsm/test_rsync"
+cmd="rsync -avxHR --progress --exclude '*/*r100.xml' */*txt */*.xml */*ortho*.tif */*.ovr */*out-DEM* */out-PC.tif dsclogin.sci.gsfc.nasa.gov:/att/pubrepo/DEM/hrsi_dsm/"
 
 #cd ${batchdir}
 #pwd
