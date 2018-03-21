@@ -376,7 +376,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                         print xml
                         print os.path.isfile(ntf)
                         print os.path.isfile(xml)
-                        continue
+                        #continue
 
                     # ** FOR NOW: copy files if it exists. assumming if it doesnt exist the path changed to NGA, copy that instead
                     if not os.path.isfile(os.path.join(imageDir, os.path.basename(ntf))): # if the file is not in the imageDir
