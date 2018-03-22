@@ -26,7 +26,7 @@ import os, sys, math, shutil, time, glob, platform, csv, subprocess as subp # ed
 from datetime import datetime
 from timeit import default_timer as timer
 from time import gmtime, strftime
-gdal.AllRegister() #register all raster format drivers
+#gdal.AllRegister() #register all raster format drivers
 import workflow_functions as wf
 import psycopg2
 #import LLtoUTM as convert
