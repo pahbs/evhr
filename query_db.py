@@ -21,8 +21,8 @@
 #   - getting rid of imageDate stuff since it will always be in yyyymmdd in the pairname
 
 #-------------------------------------------------------------------------------
-import os, sys, math, osgeo, shutil, time, glob, platform, csv, subprocess as subp # edited for ADAPT (no gdalinfo- do we need it?)
-from osgeo import ogr, osr, gdal
+import os, sys, math, shutil, time, glob, platform, csv, subprocess as subp # edited for ADAPT (no gdalinfo- do we need it?)
+#from osgeo import ogr, osr, gdal
 from datetime import datetime
 from timeit import default_timer as timer
 from time import gmtime, strftime
