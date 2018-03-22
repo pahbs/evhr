@@ -21,8 +21,8 @@
 #   - getting rid of imageDate stuff since it will always be in yyyymmdd in the pairname
 
 #-------------------------------------------------------------------------------
-import os, sys, math, osgeo, shutil, time, glob, platform, csv, subprocess as subp # edited for ADAPT (no gdalinfo- do we need it?)
-from osgeo import ogr, osr, gdal
+import os, sys, math, shutil, time, glob, platform, csv, subprocess as subp # edited for ADAPT (no gdalinfo- do we need it?)
+#from osgeo import ogr, osr, gdal
 from datetime import datetime
 from timeit import default_timer as timer
 from time import gmtime, strftime
@@ -376,15 +376,17 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                         print xml
                         print os.path.isfile(ntf)
                         print os.path.isfile(xml)
-                        continue
+                        #continue
 
                     # ** FOR NOW: copy files if it exists. assumming if it doesnt exist the path changed to NGA, copy that instead
                     if not os.path.isfile(os.path.join(imageDir, os.path.basename(ntf))): # if the file is not in the imageDir
                         ntf_replace = ntf.replace('NGA_Incoming/NGA', 'NGA')
+                        if debug: print ntf, ntf_replace
                         if os.path.isfile(ntf):
-                            #print "Copying %s" % ntf
+                            if debug: print "Copying {}".format(ntf)
                             os.system('cp {} {}'.format(ntf, imageDir))
                         elif os.path.isfile(ntf_replace):
+                            if debug: print "Copying {}".format(ntf_replace)
                             ntf = ntf_replace
                            # print "Copying %s" % ntf
                             os.system('cp {} {}'.format(ntf, imageDir))
@@ -394,12 +396,13 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
 
                     if not os.path.isfile(os.path.join(imageDir, os.path.basename(xml))):
                         xml_replace = xml.replace('NGA_Incoming/NGA', 'NGA')
+                        if debug: print xml, xml_replace
                         if os.path.isfile(xml):
-                           # print "Copying %s" % xml
+                            if debug: print "Copying {}".format(xml)
                             os.system('cp {} {}'.format(xml, imageDir))
                         elif os.path.isfile(xml_replace):
                             xml = xml_replace
-                           # print "Copying %s" % xml
+                            if debug: print "Copying {}".format(xml_replace)
                             os.system('cp {} {}'.format(xml, imageDir))
                         else:
                             #print "   file does not exist in (%s) - delete later?" % xml
@@ -410,15 +413,11 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                         # TD 4/5: we need to be sure the count goes up only if the above statements works
                     scene_exist_cnt += 1 # add one to count
 
-                if debug: continue # don't actually copy data
-
                 if scene_exist_cnt == 0: # if no data was found in the NGA database for catID
                     print "No data was found in ADAPT archive for pair {}. Skipping to next catID\n\n".format(pairname)
                     continue
                 else:
                     pair_data_exists[num] = True # set catID side to True since scenes do exist
-
-            if debug: sys.exit()
 
             if pair_data_exists == [True, True]: # both pairs have data
                 #print "Data exists for each catID in pair"
@@ -505,6 +504,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
 
     if n_missing_catIDs > 0: print "\n- Wrote {} catIDs to missing catID list {}".format(n_missing_catIDs, missing_catID_file) # only thing we wanna do is print how many files
 
+    if debug: sys.exit() # exit before tarring
     # copy summary csv to summary_csvs directory:
     os.system('cp {} {}'.format(summary_csv, os.path.join(baseDir, 'batch_summary_csvs')))
 
