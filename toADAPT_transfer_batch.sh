@@ -4,6 +4,8 @@ batch=$1 # only command line argument is batch
 
 logfile="/discover/nobackup/projects/boreal_nga/batchSummary/batch${batch}_transferToADAPT_log.txt"
 batchdir="/discover/nobackup/projects/boreal_nga/ASP/batch${batch}"
+ADAPTdir="/att/nobackup/mwooten3/AIST/TTE/test_rsync"
+user="mwooten3"
 
 printf "\nCopying results from DISCOVER to ADAPT with rsync. Output can be found in:\n$logfile\n\n"
 
@@ -22,17 +24,25 @@ printf "\n Current directory:"
 pwd
 printf "\n"
 
-cmd="rsync -avxHR --progress --exclude '*/*r100.xml' */*txt */*.xml */*ortho*.tif */*.ovr */*out-DEM* */out-PC.tif dsclogin.sci.gsfc.nasa.gov:/att/nobackup/mwooten3/AIST/TTE/test_rsync" #/att/pubrepo/DEM/hrsi_dsm/test_rsync"
+#cmd="rsync -avxHR --progress --exclude '*/*r100.xml' */*txt */*.xml */*ortho*.tif */*.ovr */*out-DEM* */out-PC.tif dsclogin.sci.gsfc.nasa.gov:${ADAPTdir}"
 
-#cd ${batchdir}
-#pwd
+cmd_list=''
 
-#for d in * ; do
-#    echo "$d"
-#    cmd="rsync -avxH -R -p --progress ${d}/out-PC.tif dsclogin.sci.gsfc.nasa.gov:/att/nobackup/mwooten3/TTE/test_rsync"
-#    echo $cmd
-#    eval $cmd
-#done
+for pairname in `ls -d [WGQ]*` ; do
+   cmd=''
+   cmd="rsync -avxHR --progress "
+   cmd+="$pairname/*txt "
+   cmd+="$pairname/*xml "
+#   cmd+="$pairname/*ortho*.tif "
+#   cmd+="$pairname/*.ovr "
+#   cmd+="$pairname/*out-DEM* "
+#   cmd+="$pairname/out-PC.tif "
+   cmd+="$user@ngalogin.nccs.nasa.gov:$ADAPTdir ; "
+   cmd_list+=\ \'$cmd\'
+done
+
+echo $cmd_list
+eval parallel --delay 1 -verbose -j 10 ::: $cmd_list
 
 
 printf " $cmd\n\n"
