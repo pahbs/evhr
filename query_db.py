@@ -458,6 +458,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
             # slurm.j inputs
             job_name = '{}__{}__job'.format(batchID, pairname) # identify job with batchID and pairname??
             time_limit = '6-00:00:00'
+            if sensor == 'WV03': time_limit = '8-00:00:00'
             num_nodes = '1'
             python_script_args = 'python {} {} {} {} {}'.format(os.path.join(DISCdir, 'code', 'evhr', workflowCodeName), pairname, batchID, os.path.join(DISCdir, 'ASP'), preLogTextFile_DISC)
             #print python_script_args #T
