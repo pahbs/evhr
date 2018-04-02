@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -f
 #
 # DEM Workflow: wv_correct, mosaic, mapproject, stereo, point2dem, hillshades, & orthoimages for individual stereopairs on DISCOVER & ADAPT
 # paul montesano, david shean, maggie wooten, christopher neigh
