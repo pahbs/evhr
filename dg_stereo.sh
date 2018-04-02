@@ -7,6 +7,8 @@
 # example of call on DISCOVER:
 #     dg_stereo.sh $pairname false
 # example of call on ADAPT:
+#	  pupsh "hostname ~ 'himat115'" "dg_stereo.sh WV03_20160703_104001001F044500_104001001EB92100 true false false /att/pubrepo/DEM/hrsi_dsm"
+#	    or
 #     dg_stereo.sh $pairname true
 #       or
 #     pupsh "hostname ~ 'ecotone16'" "dg_stereo_par.sh /att/pubrepo/DEM/hrsi_dsm/list_pairname"
@@ -166,7 +168,7 @@ else
 fi
 
 # Get proj from XML
-if [ "$ADAPT" = true ] && [ "$MAP" = true ] ; then
+if [ "$MAP" = true ] ; then
     echo; echo "Determine RPCDEM prj used to mapproject input prior to stereo ..."
     proj_rpcdem=$(proj_select.py ${rpcdem})
 fi
