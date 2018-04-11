@@ -230,7 +230,7 @@ def main():
                     cmdStr = "gdal_translate -outsize {}% {}% -co compress=lzw -b 1 -ot Float32 {} {}".format(c_pct, c_pct, ras_fn, tmp1)
                     run_wait_os(cmdStr,print_stdOut=False)
                     print "\t\t...CALC BINARY MASK..."
-                    cmdStr = 'gdal_calc.py --overwrite -A {} --outfile={} --calc="1*((A>=0)+0*(A<0))" --NoDataValue=-99'.format(tmp1, tmp2)
+                    cmdStr = 'gdal_calc.py --overwrite -A {} --outfile={} --calc="1*((A>=-50)+0*(A<-50))" --NoDataValue=-99'.format(tmp1, tmp2)
                     run_wait_os(cmdStr,print_stdOut=False)
                     print "\t\t...SIEVE..."
                     cmdStr = 'gdal_sieve.py -8 -st 5 {} {}'.format(tmp2, tmp3)
@@ -261,7 +261,7 @@ def main():
                     field_attributes_list = [os.path.split(ras_fn)[1], os.path.split(ras_fn)[0]]
 
                     if DSM:
-                        # Adding 'pairname' field and attribtute
+                        #print "Adding 'pairname' field and attribute before getting DSM Info."
                         pairname_fieldname = ['PAIRNAME']
                         field_names_list += pairname_fieldname
                         pairname = os.path.split(os.path.split(ras_fn)[0])[1]
@@ -269,6 +269,8 @@ def main():
 
                         # Kick out ang_conv (c), ang_bie (b), ang_asm (a), the DSM info header comma-delim'd string (dsm_hdr), and the attributes comm-delim'd string associated with that header
                         c,b,a,dsm_hdr,attributes = dsm_info.main(path_name)
+                        #print "\t\tHeader: %s" %(dsm_hdr)
+                        #print "\t\tAttributes: %s" %(attributes)
 
                         dsm_hdr_list = dsm_hdr.rstrip().strip(',').split(',')
                         attributes_list = attributes.rstrip().strip(',').split(',')
