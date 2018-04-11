@@ -34,36 +34,42 @@ function gettag() {
 
 #Hardcoded Args
 rmfiles=true
-tile_size=20480
+tile_size=9000 #20480
 
 TEST=false
 
 # Required Args
 pairname="$1"
-ADAPT="$2"    #true or false
-MAP="$3"      #true or false
+ADAPT="$2"        #true or false
+MAP="$3"          #true or false
+RUN_PSTEREO="$4"  #true or false
 
 if [ "$ADAPT" = false ]; then
     TEST=false
 fi
 
 if [ "$TEST" = true ]; then
-    RUN_PSTEREO="$4"
     subpixk=$5
     testname="$6"
     rpcdem=$7
     # Optional Args (stereogrammetry testing)
     #crop="5000 5000 2048 2048"
     crop=$8
-    sgm=$9     #true or false
-    sa=$10		#if sgm is true, then use 1 for sgm or 2 for mgm
-    cm=$11       #cost mode for stereo
+    SGM=$9     #true or false
+    sa=$10	   #if sgm is true, then use 1 for sgm or 2 for mgm
+    cm=$11     #cost mode for stereo
 else
     subpixk=7
-    RUN_PSTEREO="$4"
     #adapt_batch_name=$5
     out_dir=$5
     rpcdem=$6
+    if [ "$RUN_PSTEREO" = true ] ; then
+        NODES="$7"    #true or false
+        if [ "$NODES" = true ] ; then
+            nodeslist=$8
+            SGM=$9    #true or false
+        fi
+    fi
 fi
 
 if [ "$ADAPT" = true ]; then
@@ -80,8 +86,8 @@ fi
 left_catid="$(echo $pairname | awk -F '_' '{print $3}')"
 right_catid="$(echo $pairname | awk -F '_' '{print $4}')"
 
-if [ -z "$sgm" ]; then
-	sgm=false
+if [ -z "$SGM" ]; then
+	SGM=false
 fi
 
 ncpu=$(cat /proc/cpuinfo | egrep "core id|physical id" | tr -d "\n" | sed s/physical/\\nphysical/g | grep -v ^$ | sort | uniq | wc -l)
@@ -229,12 +235,13 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
                 eval time mapproject $map_opts $map_arg
             fi
         done
-
-        echo; echo "Clip the VRT rpcdem with the mapprojected extent..."; echo
-        warptool.py -tr 'last' -te 'first' ${in_img%.tif}${outext}.tif $rpcdem -outdir ${out_root}/${pairname}
-
+        rpcdem_warp=${out_root}/${pairname}/$(basename ${rpcdem%.*})_warp.tif
+        if [ ! -e $rpcdem_warp ] ; then
+            echo; echo "Clip the VRT rpcdem with the mapprojected extent..."; echo
+            warptool.py -tr 'last' -te 'first' ${in_img%.tif}${outext}.tif $rpcdem -outdir ${out_root}/${pairname}
+        fi
         # Rename rpcdem to the clipped file
-        rpcdem=${out_root}/${pairname}/$(basename ${rpcdem%.*})_warp.tif
+        rpcdem=$rpcdem_warp
 
         stereo_args+="$rpcdem"
         stereo_opts+=" --alignment-method None"
@@ -260,37 +267,44 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     # Done like this so, if present, rpcdem is last
     stereo_args="${in_left%.*}${outext}.tif ${in_right%.*}${outext}.tif ${in_left%.*}${outext}.xml ${in_right%.*}${outext}.xml ${out} $stereo_args"
 
-    if [ ! -z "$sgm" ] && [ "$sgm" = true ] ; then
+    # ADAPT processing needs these
+    par_opts="--job-size-w $tile_size --job-size-h $tile_size"
+    par_opts+=" --threads-singleprocess $ncpu"
+    par_opts+=" --processes $ncpu"
+    par_opts+=" --threads-multiprocess 1"
+    if [ "$NODES" = true  ] ; then
+        par_opts+=" --nodes-list=$nodeslist"
+    fi
+
+    if [ ! -z "$SGM" ] && [ "$SGM" = true ] ; then
         # SGM stereo runs. Not applicable for our DISCOVER processing
         if [ ! -z "$sa" ]; then
             sgm_opts+=" --stereo-algorithm $sa"
         else
-            sgm_opts+=" --stereo-algorithm 2"
+            sgm_opts+=" --stereo-algorithm 1"
         fi
         if [ ! -z "$cm" ]; then
             sgm_opts+=" --cost-mode $cm"
         else
             sgm_opts+=" --cost-mode 3"
         fi
-        sgm_opts+=" --corr-kernel 3 3"
+        sgm_opts+=" --corr-memory-limit-mb 5000"
+        sgm_opts+=" --corr-kernel 5 5"
         sgm_opts+=" --corr-tile-size $tile_size"
         sgm_opts+=" --xcorr-threshold -1"
         sgm_opts+=" --subpixel-mode 0"
         sgm_opts+=" --median-filter-size 3"
-        sgm_opts+=" --texture-smooth-size 13"
-        sgm_opts+=" --texture-smooth-scale 0.13"
-        sgm_opts+=" --threads 6"
-        sgm_opts+="$stereo_opts"
+        sgm_opts+=" --texture-smooth-size 7"
+        sgm_opts+=" --texture-smooth-scale 0"
+        sgm_opts+=" --threads 10"
+        sgm_opts+=" $stereo_opts"
 
         echo; date; echo;
-        eval time stereo -e $e $sgm_opts $stereo_args
+        #eval time stereo -e $e $sgm_opts $stereo_args
+        cmd="parallel_stereo -e $e $par_opts $sgm_opts $stereo_args"
+        echo $cmd
+        eval $cmd
     else
-        # ADAPT processing needs these
-        par_opts="--job-size-w $tile_size --job-size-h $tile_size"
-        par_opts+=" --threads-singleprocess $ncpu"
-        par_opts+=" --processes $ncpu"
-        par_opts+=" --threads-multiprocess 1"
-
         # DISCOVER processing needs these.
         stereo_opts+=" --corr-kernel 21 21"
         stereo_opts+=" --subpixel-mode 2"
@@ -318,8 +332,11 @@ else
         echo; echo "Convert PC.tif from virtual to real"; echo
         eval time gdal_translate $gdal_opts ${out}-PC.tif ${out}-PC_full.tif
         mv ${out}-PC_full.tif ${out}-PC.tif
-        echo; echo "Removing intermediate parallel_stereo dirs"; echo
-        rm -rf ${out}*/
+    fi
+    if [ "$RUN_PSTEREO" = true ] ; then
+        echo; echo "Removing intermediate parallel_stereo dirs..."
+        echo "${out}-*/"
+        rm -rf ${out}-*/
     fi
 
     stats_res=24
@@ -401,7 +418,7 @@ else
     if [[ ! -z $cmd_list ]]; then
         echo; echo "Do all colorshades and hillshades in parallel"; echo
         eval parallel -verbose -j 10 ::: $cmd_list
-        rm ${out}*color.tif
+        rm -v ${out}*color.tif
     fi
 
     ortho_opts="--nodata-value 0"
@@ -476,27 +493,28 @@ else
             fi
         done
     fi
-    echo; echo "Removing individual ortho scenes..."; echo
-    for i in $(ls ${out_root}/${pairname}/*P1BS*ortho.tif); do
-        rm -v ${i%.*}*
-    done
-
-    if [ -e ${out}-DEM_native.tif ]; then
-	 	mv ${out}-DEM_native.tif ${out}-strip-DEM.tif
-    fi
-    if [ -e ${out}-L.tif ]; then
-	 	mv ${out}-L.tif ${out}-strip-L.tif
-    fi
 
     if [ "$rmfiles" = true ] ; then
-        echo; echo "Removing intermediate files"
-        rm ${out_root}/${pairname}/*_corr.*
+        echo; echo "Removing intermediate files..."
+    
+        if [ -e ${out}-DEM_native.tif ]; then
+	 	    rm -v ${out}-DEM_native.tif
+        fi
+
+        for i in $(ls ${out_root}/${pairname}/*P1BS*ortho.tif); do
+            rm -v ${i%.*}*
+        done
+        
+        rm -v ${out_root}/${pairname}/*_corr.*
         rm ${out}-log-stereo_parse*.txt
-        #if [ -e ${out_ortho} ] ; then
-        #    rm ${out_root}/${pairname}/*.r100.tif
-        #fi
-        rm ${out_root}/${pairname}/out.*
-        rm ${out_root}/${pairname}/*warp.tif
+
+        if [ -e ${out_ortho} ] ; then
+            rm -v ${out_root}/${pairname}/*.r100.tif
+        fi
+
+        rm -v ${out_root}/${pairname}/out.*
+        rm -v ${out_root}/${pairname}/*warp.tif
+
         for i in sub.tif Mask.tif .match .exr center.txt ramp.txt; do
             rm -v ${out}-*${i}
         done
@@ -517,3 +535,4 @@ t_diff_hr=$(printf "%0.4f" $(echo "$t_diff/3600" | bc -l ))
 
 echo; date
 echo "Total processing time for pair ${pairname} in hrs: ${t_diff_hr}"
+exit 1
