@@ -1,4 +1,4 @@
-#!/bin/bash -f
+#!/bin/bash
 #
 # DEM Workflow: wv_correct, mosaic, mapproject, stereo, point2dem, hillshades, & orthoimages for individual stereopairs on DISCOVER & ADAPT
 # paul montesano, david shean, maggie wooten, christopher neigh
@@ -7,7 +7,7 @@
 # example of call on DISCOVER:
 #     dg_stereo.sh $pairname false
 # example of call on ADAPT:
-#	  pupsh "hostname ~ 'himat115'" "dg_stereo.sh WV03_20160703_104001001F044500_104001001EB92100 true false false /att/pubrepo/DEM/hrsi_dsm"
+#	  pupsh "hostname ~ 'himat115'" "dg_stereo.sh WV02_20160512_10300100548DD500_103001005422BA00 true true false true batch_andes '' true $HOME/code/nodes_ecotone_ngaproc false 21 1024"
 #	    or
 #     dg_stereo.sh $pairname true
 #       or
@@ -33,54 +33,43 @@ function gettag() {
 }
 
 #Hardcoded Args
-rmfiles=true
-tile_size=9000 #20480
-
-TEST=false
+tile_size=1024 #20480
 
 # Required Args
-pairname="$1"
-ADAPT="$2"        #true or false
-MAP="$3"          #true or false
-RUN_PSTEREO="$4"  #true or false
+pairname=$1
+TEST=$2
+ADAPT=$3          #true or false
+MAP=$4            #true or false
+RUN_PSTEREO=$5    #true or false
+batch_name=$6
+rpcdem=$7
+NODES=$8          #true or false
+nodeslist=$9
+SGM=${10}         #true or false
 
 if [ "$ADAPT" = false ]; then
     TEST=false
 fi
 
 if [ "$TEST" = true ]; then
-    subpixk=$5
-    testname="$6"
-    rpcdem=$7
+    subpixk=${11}
+    erode_max_size=${12}
+    
     # Optional Args (stereogrammetry testing)
-    #crop="5000 5000 2048 2048"
-    crop=$8
-    SGM=$9     #true or false
-    sa=$10	   #if sgm is true, then use 1 for sgm or 2 for mgm
-    cm=$11     #cost mode for stereo
+    crop=${13}   #"0 190000 40000 40000"
+    #sa=${14}	   #if sgm is true, then use 1 for sgm or 2 for mgm
+    #cm=${15}      #cost mode for stereo
 else
     subpixk=7
-    #adapt_batch_name=$5
-    out_dir=$5
-    rpcdem=$6
-    if [ "$RUN_PSTEREO" = true ] ; then
-        NODES="$7"    #true or false
-        if [ "$NODES" = true ] ; then
-            nodeslist=$8
-            SGM=$9    #true or false
-        fi
-    fi
+    erode_max_size=0
 fi
 
 if [ "$ADAPT" = true ]; then
-    #out_root=$NOBACKUP/outASP/${adapt_batch_name}
-    out_root=$out_dir
-    if [ "$TEST" = true ]; then
-        out_root=$NOBACKUP/outASP_${testname}
-    fi
+    out_root=$NOBACKUP/outASP/${batch_name}
+    mkdir -p $out_root
 else
-    out_root=$4 # output directory is 4th input if on DISCOVER
-    #out_root=/discover/nobackup/projects/boreal_nga/ASP/batchName
+    #out_root=$4 # output directory is 4th input if on DISCOVER
+    out_root=/discover/nobackup/projects/boreal_nga/ASP/${batch_name}
 fi
 
 left_catid="$(echo $pairname | awk -F '_' '{print $3}')"
@@ -256,7 +245,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     stereo_opts+=" --corr-timeout 300"
     stereo_opts+=" --subpixel-kernel $subpixk $subpixk"
     #stereo_opts+=" --fill-holes-max-size 15"
-    #stereo_opts+=" --erode-max-size 150"
+    stereo_opts+=" --erode-max-size $erode_max_size"
     stereo_opts+=" --individually-normalize"
     stereo_opts+=" --tif-compress LZW"
 
@@ -335,7 +324,7 @@ else
     fi
     if [ "$RUN_PSTEREO" = true ] ; then
         echo; echo "Removing intermediate parallel_stereo dirs..."
-        echo "${out}-*/"
+        echo "${out}-"*/
         rm -rf ${out}-*/
     fi
 
@@ -494,7 +483,9 @@ else
         done
     fi
 
-    if [ "$rmfiles" = true ] ; then
+    if [ "$TEST" = true ] ; then
+        echo; echo "TEST run: Keeping all intermediate files..."
+    else
         echo; echo "Removing intermediate files..."
     
         if [ -e ${out}-DEM_native.tif ]; then
@@ -504,26 +495,26 @@ else
         for i in $(ls ${out_root}/${pairname}/*P1BS*ortho.tif); do
             rm -v ${i%.*}*
         done
-        
-        rm -v ${out_root}/${pairname}/*_corr.*
+        #for i in $(ls ${out_root}/${pairname}/*_corr.*); do
+        rm -rf $(ls ${out_root}/${pairname}/*.{tif,xml} | grep _corr)
         rm ${out}-log-stereo_parse*.txt
 
-        if [ -e ${out_ortho} ] ; then
-            rm -v ${out_root}/${pairname}/*.r100.tif
+        if [ -e "${out_ortho}" ] ; then
+            rm -v "${out_root}/${pairname}/"*.r100*.tif
         fi
 
-        rm -v ${out_root}/${pairname}/out.*
-        rm -v ${out_root}/${pairname}/*warp.tif
+        rm -v "${out_root}/${pairname}/"out.*
+        rm -v "${out_root}/${pairname}/"*warp.tif
 
         for i in sub.tif Mask.tif .match .exr center.txt ramp.txt; do
             rm -v ${out}-*${i}
         done
         for i in F L R RD D GoodPixelMap DEM-clr-shd DEM-hlshd-e25 DRG; do
-            if [ -e ${out}-${i}.tif ]; then
-                rm -v ${out}-${i}.tif
+            if [ -e "${out}-${i}.tif" ]; then
+                rm -v "${out}-${i}.tif"
             fi
-            if [ -e ${out}-strip-${i}.tif ]; then
-                rm -v ${out}-strip-${i}.*
+            if [ -e "${out}-strip-${i}.tif" ]; then
+                rm -v "${out}-strip-${i}".*
             fi
         done
     fi
