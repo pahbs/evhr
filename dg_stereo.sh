@@ -37,31 +37,29 @@ tile_size=1024 #20480
 
 # Required Args
 pairname=$1
-TEST=$2
+TEST=$2           #true or false
 ADAPT=$3          #true or false
 MAP=$4            #true or false
 RUN_PSTEREO=$5    #true or false
 batch_name=$6
-rpcdem=$7
+rpcdem=$7         #can be blank var ''
 NODES=$8          #true or false
 nodeslist=$9
 SGM=${10}         #true or false
+# Using 7 for vegetation (very noisy, but resolves more gaps) - use 21+ for mountains/glaciers/other terrain
+subpixk=${11}
+erode_max_size=${12}
+
 
 if [ "$ADAPT" = false ]; then
     TEST=false
 fi
 
 if [ "$TEST" = true ]; then
-    subpixk=${11}
-    erode_max_size=${12}
-    
     # Optional Args (stereogrammetry testing)
     crop=${13}   #"0 190000 40000 40000"
     #sa=${14}	   #if sgm is true, then use 1 for sgm or 2 for mgm
     #cm=${15}      #cost mode for stereo
-else
-    subpixk=7
-    erode_max_size=0
 fi
 
 if [ "$ADAPT" = true ]; then
