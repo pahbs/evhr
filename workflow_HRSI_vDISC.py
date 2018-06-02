@@ -76,7 +76,33 @@ def run_asp(
     # now call the script
     print "Calling {} to perform stereo...".format(stereoCode)
     print " Parameters: {} false false {}\n\n".format(pairname, batchDir)
-    command = 'bash {} {} false false {}'.format(stereoCode, pairname, batchDir) # false for ADAPT and false for MAP
+    #command = 'bash {} {} false false {}'.format(stereoCode, pairname, batchDir) # false for ADAPT and false for MAP -- command we've been using
+    """Command above is what we've been using. Parameters below are what Paul wants to run with ANDES mini for new dg_stereo:
+    pairname=$1
+    TEST=false
+    ADAPT=false
+    MAP=false
+    RUN_PSTEREO=false
+    batch_name='batch_andesmini'
+    rpcdem=''
+    NODES=false
+    nodeslist=''
+    SGM=false
+    subpixk=25
+    erode_max_size=1024
+        """
+    test_p = 'false'
+    adapt_p = 'false'
+    map_p = 'false'
+    runStereo_p = 'false'
+    batch_p = 'batch{}'.format(batchID)
+    rpc_p = ''
+    nodes_p = 'false'
+    nodesList_p = ''
+    sgm_p = 'false'
+    subpix_p = '25'
+    erodeSize_p = '1024'
+    command = 'bash {} {} {} {} {} {} {} "{}" {} {} {} {} {}'.format(stereoCode, pairname, test_p, adapt_p, map_p, runStereo_p, batch_p, rpc_p, nodes_p, nodesList_p, sgm_p, subpix_p, erodeSize_p) # parameters specified by Paul specifically for andes mini batch. temporary most likely
     #subp.check_output([command])
     os.system(command) # try this for now
 
