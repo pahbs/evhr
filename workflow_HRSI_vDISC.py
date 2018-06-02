@@ -104,6 +104,7 @@ def run_asp(
     erodeSize_p = '1024'
     command = 'bash {} {} {} {} {} {} {} "{}" {} {} {} {} {}'.format(stereoCode, pairname, test_p, adapt_p, map_p, runStereo_p, batch_p, rpc_p, nodes_p, nodesList_p, sgm_p, subpix_p, erodeSize_p) # parameters specified by Paul specifically for andes mini batch. temporary most likely
     #subp.check_output([command])
+    print 'New command: {}\n\n'.format(command)
     os.system(command) # try this for now
 
 
