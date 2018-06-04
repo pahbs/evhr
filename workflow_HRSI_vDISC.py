@@ -77,7 +77,7 @@ def run_asp(
     print "Calling {} to perform stereo...".format(stereoCode)
     print " Parameters: {} false false {}\n\n".format(pairname, batchDir)
     #command = 'bash {} {} false false {}'.format(stereoCode, pairname, batchDir) # false for ADAPT and false for MAP -- command we've been using
-    """Command above is what we've been using. Parameters below are what Paul wants to run with ANDES mini for new dg_stereo:
+    """Command above is what we've been using. Parameters below are what Paul wants to run with ANDES mini for new dg_stereo (6/1/2018):
     pairname=$1
     TEST=false
     ADAPT=false
