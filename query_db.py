@@ -44,7 +44,7 @@ def find_elapsed_time(start, end):
 # ...also for alreadyQueried and alreadyProcessed outattributes, only batchID, pairname, catID_1 and catID_2 columns might possibly be filled
 
 # function to check if pairname has: already been queried (i.e. directory exists in the same batch in inASP) or already been processed and synced back to DISCOVER
-def check_pairname_continue(pairname, imageDir, job_script, preLogText): # outAttributes will have as many outAttributes as are known at the time but with 'filler' in the last columm, which will be replaced with approporate reason before getting written to csv
+def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCopyPair): # outAttributes will have as many outAttributes as are known at the time but with 'filler' in the last columm, which will be replaced with approporate reason before getting written to csv
     alreadyProcessed = False # this starts at False and gets set to true if the pair was already processed
     queryCopyPair = True # start with the assumption that we have not queried/copied this pair for this batch and so we DO want to query/copy
 
@@ -67,12 +67,15 @@ def check_pairname_continue(pairname, imageDir, job_script, preLogText): # outAt
         print "  Pair {} has already been processed in previous batch. Moving to next pair\n".format(pairname)
 
         alreadyProcessed = True # then skip pairname. even if queryCopyPair is True it will be skipped entirely because continue is before if queryCopyPair
+        if alwaysCopyPair: alreadyProcessed = False # if we want to copy it anyways, pretend it was not already processed
+
 
     return (queryCopyPair, alreadyProcessed, preLogText)
 
 #def main(csv, ASPdir, batchID, mapprj=True, doP2D=True, rp=100): #* batchID to keep track of groups of pairs for processing # old way- without argparse
 def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args are optional #n vinTxt replaces csv
 
+    alwaysCopyPair = True # usually set to False, set to True if we want to copy pairname even if it already exists in the repository (already been processed ina  previous batch)
     test = False # set test to True if we want to run a test, which will not skip the pair if it's already in the hrsi_dsms directory on pubrepo
 
     start_main = timer() # start timer object for entire batch
@@ -187,7 +190,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
 
         # before continuing, check to see if we need to a) stop processing (alreadyProcessed) b) skip query/copy or c) continue on with process
         outAttributes = '{},{},{},"",{},"",{},{},filler\n'.format(batchID, pairname, catID_1, catID_2, year, month) # this is outAttributes for now. filler will be replaced
-        (queryCopyPair, alreadyProcessed, preLogText) = check_pairname_continue(pairname, imageDir, job_script, preLogText)
+        (queryCopyPair, alreadyProcessed, preLogText) = check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCopyPair)
         # pairnameContinue
 
         # TEST 1/29/18: only editing this below (and commenting the line above) so we can send these test pairs to DISCOVER for comparison
