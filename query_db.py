@@ -399,6 +399,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                             os.system('cp {} {}'.format(ntf, imageDir))
                         else: # if the file exists in none of these places
                             #print "   file does not exist in (%s) - delete later?" % ntf
+                            if debug: print "file does not exist in {} or {}".format(ntf, ntf_replace)
                             continue # move to next scene, don't even try to get the xml
 
                     if not os.path.isfile(os.path.join(imageDir, os.path.basename(xml))):
@@ -413,6 +414,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                             os.system('cp {} {}'.format(xml, imageDir))
                         else:
                             #print "   file does not exist in (%s) - delete later?" % xml
+                            if debug: print "file does not exist in {} or {}".format(xml, xml_replace)
                             os.remove(ntf) # remove ntf file if xml does not exist
                             continue # move to next scene
 
