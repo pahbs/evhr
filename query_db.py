@@ -391,10 +391,10 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                         if debug: print ntf, ntf_replace
                         if os.path.isfile(ntf):
                             if debug: print "Copying {}".format(ntf)
-                            os.system('cp {} {}'.format(ntf, imageDir))
+                            else: os.system('cp {} {}'.format(ntf, imageDir)) # only copy if debug off
                         elif os.path.isfile(ntf_replace):
                             if debug: print "Copying {}".format(ntf_replace)
-                            ntf = ntf_replace
+                            else: ntf = ntf_replace
                            # print "Copying %s" % ntf
                             os.system('cp {} {}'.format(ntf, imageDir))
                         else: # if the file exists in none of these places
@@ -407,15 +407,15 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                         if debug: print xml, xml_replace
                         if os.path.isfile(xml):
                             if debug: print "Copying {}".format(xml)
-                            os.system('cp {} {}'.format(xml, imageDir))
+                            else: os.system('cp {} {}'.format(xml, imageDir))
                         elif os.path.isfile(xml_replace):
                             xml = xml_replace
                             if debug: print "Copying {}".format(xml_replace)
-                            os.system('cp {} {}'.format(xml, imageDir))
+                            else: os.system('cp {} {}'.format(xml, imageDir))
                         else:
                             #print "   file does not exist in (%s) - delete later?" % xml
                             if debug: print "file does not exist in {} or {}".format(xml, xml_replace)
-                            os.remove(ntf) # remove ntf file if xml does not exist
+                            else: os.remove(ntf) # remove ntf file if xml does not exist
                             continue # move to next scene
 
                         # if we get here, both xml and ntf existed (we bypassed both else - continue statements)
