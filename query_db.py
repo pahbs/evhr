@@ -32,7 +32,7 @@ import psycopg2
 #import LLtoUTM as convert
 import get_stereopairs_v3 as g
 #import shapefile
-from distutils.util import strtobool
+#from distutils.util import strtobool
 
 
 def find_elapsed_time(start, end):
@@ -139,8 +139,12 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
     if os.path.isfile(missing_catID_file): os.remove(missing_catID_file) # if this missing cat ID file exists, erase it
 
     # this text file will be a list of all pairs submitted for processing (including pairs that were
-    submittedPairFile = '/att/gpfsfs/briskfs01/ppl/mwooten3/Paul_TTE/submittedPairs_lists/batch{}_submittedPairs.txt'.format(batchID)
+    submittedPairFile = os.path.join(baseDir, 'submittedPairs_lists', 'batch{}_submittedPairs.txt'.format(batchID))
     if os.path.isfile(submittedPairFile): os.remove(submittedPairFile) # if this submitted pair file exists, erase it and start over
+
+    # make some dirs:
+    for d in [os.path.join(baseDir, 'missing_catID_lists'), os.path.join(baseDir, 'submittedPairs_lists')]:
+        os.system('mkdir -p {}'.format(d))
 
     # create submission script file which will contain all commands needed to submit the job to slurm
     submission_file = os.path.join(batchDir, 'submit_jobs_batch{}.sh'.format(batchID))
