@@ -1,6 +1,18 @@
 #!/bin/bash
 
-batch=$1 # only command line argument is batch
+#batch=$1 # only command line argument is batch
+# Provide second directory argument if not in default dir
+if [ $# -eq 1 ]
+  then
+    batch=$1
+    adaptDir="/att/nobackup/mwooten3/AIST/TTE/ASP"
+fi
+if [ $# -eq 2 ]
+  then
+    batch=$1
+    adaptDir=$2
+fi
+
 
 logfile="/att/nobackup/mwooten3/AIST/TTE/queryLogs/batch${batch}_ADAPT_query_log.txt"
 
@@ -17,7 +29,8 @@ printf "START: "
 #start_date=date
 date
 #printf "\n"
-cmd="nohup rsync -avxH --progress /att/nobackup/mwooten3/AIST/TTE/ASP/batch$batch-archive.tar.gz discover.nccs.nasa.gov:/discover/nobackup/projects/boreal_nga/ASP"
+#cmd="nohup rsync -avxH --progress $adaptDir/batch$batch-archive.tar.gz discover.nccs.nasa.gov:/discover/nobackup/projects/boreal_nga/ASP" # if using tar.gz
+cmd="nohup rsync -avxH --progress $adaptDir/batch$batch  discover.nccs.nasa.gov:/discover/nobackup/projects/boreal_nga/ASP"
 printf " $cmd\n\n"
 eval $cmd
 printf "\n\nEND: "
