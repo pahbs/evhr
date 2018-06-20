@@ -391,7 +391,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                     # ** FOR NOW: copy files if it exists. assumming if it doesnt exist the path changed to NGA, copy that instead
                     if not os.path.isfile(os.path.join(imageDir, os.path.basename(ntf))): # if the file is not in the imageDir
                         ntf_replace = ntf.replace('NGA_Incoming/NGA', 'NGA')
-                        if debug: print ntf, ntf_replace
+##                        if debug: print ntf, ntf_replace
                         if os.path.isfile(ntf):
                             if debug: print "Copying {}".format(ntf)
                             else: os.system('cp {} {}'.format(ntf, imageDir)) # only copy if debug off
@@ -407,7 +407,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
 
                     if not os.path.isfile(os.path.join(imageDir, os.path.basename(xml))):
                         xml_replace = xml.replace('NGA_Incoming/NGA', 'NGA')
-                        if debug: print xml, xml_replace
+##                        if debug: print xml, xml_replace
                         if os.path.isfile(xml):
                             if debug: print "Copying {}".format(xml)
                             else: os.system('cp {} {}'.format(xml, imageDir))
