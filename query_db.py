@@ -64,10 +64,12 @@ def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCo
     checkOut1 = "/att/pubrepo/DEM/hrsi_dsm/{}/out-DEM_4m.tif".format(pairname) # if EITHER of these exist, we dont need to process in DISC
     checkOut2 = "/att/pubrepo/DEM/hrsi_dsm/{}/out-DEM_1m.tif".format(pairname)
     if os.path.isfile(checkOut1) or os.path.isfile(checkOut2): # already ran successfully and was rsynced back to ADAPT
-        print "  Pair {} has already been processed in previous batch. Moving to next pair\n".format(pairname)
-
         alreadyProcessed = True # then skip pairname. even if queryCopyPair is True it will be skipped entirely because continue is before if queryCopyPair
-        if alwaysCopyPair: alreadyProcessed = False # if we want to copy it anyways, pretend it was not already processed
+
+        if alwaysCopyPair:
+            alreadyProcessed = False # if we want to copy it anyways, pretend it was not already processed
+            print "  Pair {} has already been processed in previous batch. alwaysCopyPair is on, so copying data anyways\n".format(pairname)
+        else: print "  Pair {} has already been processed in previous batch. Moving to next pair\n".format(pairname)
 
 
     return (queryCopyPair, alreadyProcessed, preLogText)
