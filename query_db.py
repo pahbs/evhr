@@ -75,6 +75,7 @@ def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCo
 #def main(csv, ASPdir, batchID, mapprj=True, doP2D=True, rp=100): #* batchID to keep track of groups of pairs for processing # old way- without argparse
 def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args are optional #n vinTxt replaces csv
 
+    tarzipBatch = False # set as variable for now, might use it but might get rid of it altogether
     alwaysCopyPair = True # usually set to False, set to True if we want to copy pairname even if it already exists in the repository (already been processed ina  previous batch)
     test = False # set test to True if we want to run a test, which will not skip the pair if it's already in the hrsi_dsms directory on pubrepo
 
@@ -231,7 +232,7 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
                 for num, catID in enumerate([catID_1,catID_2]): #* loop thru catID of the pairs
 
                    # selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM nga_files_footprint WHERE catalog_id = '%s'" %(catID)
-                    selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM nga_inventory WHERE catalog_id = '{}' AND prod_code = 'P1BS'".format(catID) # 2/13 change nga_inventory_footprint to nga_inventory # 4/13 add AND prod_code so we only get Pan data
+                    selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM nga_inventory_canon WHERE catalog_id = '{}' AND prod_code = 'P1BS'".format(catID) # 2/13 change nga_inventory_footprint to nga_inventory # 4/13 add AND prod_code so we only get Pan data
                     preLogText.append( "\n  Now executing database query on catID '{}' ...".format(catID))
                     print "  Executing database query on catID '{}' ...".format(catID)
                     cur.execute(selquery)
@@ -519,21 +520,27 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
     os.system('cp {} {}'.format(summary_csv, os.path.join(baseDir, 'batch_summary_csvs')))
 
     # NOW TAR everything in the batchDir into archive
-    start_tarzip = timer()
-    archive = os.path.join(ASPdir, 'batch{}-archive.tar.gz'.format(batchID))
-    print "\n\n--------------------------------------------\nAttempting to archive data now for entire batch ({} of {} pairs)...".format(n_submitted, nPairs)
-    if not os.path.exists(archive): # if data has not yet been tarred up (careful with this)
-        print "\n Begin archiving:", datetime.now().strftime("%I:%M%p  %a, %m-%d-%Y")
-        tarComm = 'tar -zcf {} -C {} batch{}'.format(archive, ASPdir, batchID) #* might not need to change, still wanna get rid of all the way up to batchdir so
-        print ' ' + tarComm
-        os.system(tarComm)
-        print " Finish archiving:", datetime.now().strftime("%I:%M%p  %a, %m-%d-%Y")
-        end_tarzip = timer()
-        time_tarzip = round(find_elapsed_time(start_tarzip, end_tarzip),3)
-        print "Elapsed time for tarring/zipping {} pairs: {} minutes".format(n_submitted, time_tarzip)
-    else:
-        print " Archive {} already exists".format(archive)
-        time_tarzip = 0
+    if tarzipBatch:
+        start_tarzip = timer()
+        archive = os.path.join(ASPdir, 'batch{}-archive.tar.gz'.format(batchID))
+        print "\n\n--------------------------------------------\nAttempting to archive data now for entire batch ({} of {} pairs)...".format(n_submitted, nPairs)
+        if not os.path.exists(archive): # if data has not yet been tarred up (careful with this)
+            print "\n Begin archiving:", datetime.now().strftime("%I:%M%p  %a, %m-%d-%Y")
+            tarComm = 'tar -zcf {} -C {} batch{}'.format(archive, ASPdir, batchID) #* might not need to change, still wanna get rid of all the way up to batchdir so
+            print ' ' + tarComm
+            os.system(tarComm)
+            print " Finish archiving:", datetime.now().strftime("%I:%M%p  %a, %m-%d-%Y")
+            end_tarzip = timer()
+            time_tarzip = round(find_elapsed_time(start_tarzip, end_tarzip),3)
+            print "Elapsed time for tarring/zipping {} pairs: {} minutes".format(n_submitted, time_tarzip)
+        else:
+            print " Archive {} already exists".format(archive)
+            time_tarzip = 0
+
+    else: # if no tarzip
+        print "\nNot tar/zipping batch"
+        time_tarzip = 'N/A'
+
 
     end_main = timer()
     time_main = round(find_elapsed_time(start_main, end_main), 3)
