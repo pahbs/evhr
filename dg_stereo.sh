@@ -49,7 +49,7 @@ SGM=${10}         #true or false
 # Using 7 for vegetation (very noisy, but resolves more gaps) - use 21+ for mountains/glaciers/other terrain
 subpixk=${11}
 erode_max_size=${12}
-
+corr_kern=${13} 
 
 if [ "$ADAPT" = false ]; then
     TEST=false
@@ -57,9 +57,9 @@ fi
 
 if [ "$TEST" = true ]; then
     # Optional Args (stereogrammetry testing)
-    crop=${13}   #"0 190000 40000 40000"
-    #sa=${14}	   #if sgm is true, then use 1 for sgm or 2 for mgm
-    #cm=${15}      #cost mode for stereo
+    crop=${14}   #"0 190000 40000 40000"
+    #sa=${15}	   #if sgm is true, then use 1 for sgm or 2 for mgm
+    #cm=${16}      #cost mode for stereo
 fi
 
 if [ "$ADAPT" = true ]; then
@@ -263,7 +263,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         par_opts+=" --nodes-list=$nodeslist"
     fi
 
-    if [ ! -z "$SGM" ] && [ "$SGM" = true ] ; then
+    if [ "$RUN_PSTEREO" = true ] && [ "$SGM" = true ] ; then
         # SGM stereo runs. Not applicable for our DISCOVER processing
         if [ ! -z "$sa" ]; then
             sgm_opts+=" --stereo-algorithm $sa"
@@ -276,7 +276,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
             sgm_opts+=" --cost-mode 3"
         fi
         sgm_opts+=" --corr-memory-limit-mb 5000"
-        sgm_opts+=" --corr-kernel 5 5"
+        sgm_opts+=" --corr-kernel 7 7"
         sgm_opts+=" --corr-tile-size $tile_size"
         sgm_opts+=" --xcorr-threshold -1"
         sgm_opts+=" --subpixel-mode 0"
@@ -293,7 +293,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         eval $cmd
     else
         # DISCOVER processing needs these.
-        stereo_opts+=" --corr-kernel 21 21"
+        stereo_opts+=" --corr-kernel $corr_kern $corr_kern"
         stereo_opts+=" --subpixel-mode 2"
         stereo_opts+=" --filter-mode 1"
         stereo_opts+=" --cost-mode 2"
