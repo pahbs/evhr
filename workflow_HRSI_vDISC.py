@@ -90,7 +90,8 @@ def run_asp(
     SGM=false
     subpixk=25
     erode_max_size=1024
-        """
+
+    # ANDES mini p2 parameters (6/21ish)
     test_p = 'false'
     adapt_p = 'false'
     map_p = 'false'
@@ -102,7 +103,24 @@ def run_asp(
     sgm_p = 'false'
     subpix_p = '15'
     erodeSize_p = '1024'
-    command = 'bash {} {} {} {} {} {} {} "{}" {} "{}" {} {} {}'.format(stereoCode, pairname, test_p, adapt_p, map_p, runStereo_p, batch_p, rpc_p, nodes_p, nodesList_p, sgm_p, subpix_p, erodeSize_p) # parameters specified by Paul specifically for andes mini batch. temporary most likely
+    """
+    # 6/26 3DSI08 parameters*
+    #* added parameters corrKern_p and corrTime_p (14 total parameters including pairname)
+    test_p = 'false'
+    adapt_p = 'false'
+    map_p = 'false'
+    runStereo_p = 'false'
+    batch_p = 'batch{}'.format(batchID)
+    rpc_p = ''
+    nodes_p = 'false'
+    nodesList_p = ''
+    sgm_p = 'false'
+    subpix_p = '7'
+    erodeSize_p = '0'
+    corrKern_p = '21'
+    corrTime_p = '300'
+
+    command = 'bash {} {} {} {} {} {} {} "{}" {} "{}" {} {} {} {} {}'.format(stereoCode, pairname, test_p, adapt_p, map_p, runStereo_p, batch_p, rpc_p, nodes_p, nodesList_p, sgm_p, subpix_p, erodeSize_p, corrKern_p, corrTime_p) # parameters specified by Paul specifically for andes mini batch. temporary most likely
     #subp.check_output([command])
     print 'New command: {}\n\n'.format(command)
     os.system(command) # try this for now
