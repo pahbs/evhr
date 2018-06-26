@@ -46,10 +46,14 @@ rpcdem=$7         #can be blank var ''
 NODES=$8          #true or false
 nodeslist=$9
 SGM=${10}         #true or false
-# Using 7 for vegetation (very noisy, but resolves more gaps) - use 21+ for mountains/glaciers/other terrain
-subpixk=${11}
+# Using 7 for vegetation (very noisy, but resolves more gaps?) - use 21+ for mountains/glaciers/other terrain
+subpix_kern=${11}
+# 1024 probably decent
 erode_max_size=${12}
-corr_kern=${13} 
+# 21 is default
+corr_kern=${13}
+# 300 is default; increase for more difficult areas.
+corr_time=${14} 
 
 if [ "$ADAPT" = false ]; then
     TEST=false
@@ -57,9 +61,9 @@ fi
 
 if [ "$TEST" = true ]; then
     # Optional Args (stereogrammetry testing)
-    crop=${14}   #"0 190000 40000 40000"
-    #sa=${15}	   #if sgm is true, then use 1 for sgm or 2 for mgm
-    #cm=${16}      #cost mode for stereo
+    crop=${15}   #"0 190000 40000 40000"
+    #sa=${16}	   #if sgm is true, then use 1 for sgm or 2 for mgm
+    #cm=${17}      #cost mode for stereo
 fi
 
 if [ "$ADAPT" = true ]; then
@@ -240,10 +244,10 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         stereo_opts+=" --alignment-method AffineEpipolar"
     fi
 
-    stereo_opts+=" --corr-timeout 300"
-    stereo_opts+=" --subpixel-kernel $subpixk $subpixk"
-    #stereo_opts+=" --fill-holes-max-size 15"
+    stereo_opts+=" --subpixel-kernel $subpix_kern $subpix_kern"
     stereo_opts+=" --erode-max-size $erode_max_size"
+    stereo_opts+=" --corr-kernel $corr_kern $corr_kern"
+    stereo_opts+=" --corr-timeout $corr_time"
     stereo_opts+=" --individually-normalize"
     stereo_opts+=" --tif-compress LZW"
 
