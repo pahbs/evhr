@@ -75,10 +75,9 @@ def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCo
     return (queryCopyPair, alreadyProcessed, preLogText)
 
 #def main(csv, ASPdir, batchID, mapprj=True, doP2D=True, rp=100): #* batchID to keep track of groups of pairs for processing # old way- without argparse
-def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args are optional #n vinTxt replaces csv
+def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, noP2D, rp, debug): #the 3 latter args are optional #n vinTxt replaces csv
 
     tarzipBatch = False # set as variable for now, might use it but might get rid of it altogether
-    alwaysCopyPair = True # usually set to False, set to True if we want to copy pairname even if it already exists in the repository (already been processed ina  previous batch)
     test = False # set test to True if we want to run a test, which will not skip the pair if it's already in the hrsi_dsms directory on pubrepo
 
     start_main = timer() # start timer object for entire batch
@@ -122,6 +121,11 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0) # re-open stdout without buffering
     os.dup2(so.fileno(), sys.stdout.fileno())           # redirect stdout and stderr to the log file opened above
     os.dup2(se.fileno(), sys.stderr.fileno())
+
+    print jobID
+    print alwaysCopyPair
+    print noP2D
+    sys.exit()
 
     if debug: print "!!!!! DEBUG mode !!!!!\n\n"
     print "BATCH: {}".format(batchID)
@@ -567,7 +571,8 @@ if __name__ == '__main__':
     ap.add_argument("inTxt", help = "Input text file with pairnames to be queried and processed") #required
     ap.add_argument("ASPdir", help = "inASP directory where batch/pair input data will be stored") # required
     ap.add_argument("batchID", help = "Batch identifier") #required
-    ap.add_argument("jobID", default='s1862', help = "Job ID (s1861 or s1862)")
+    ap.add_argument("-jobID", default='s1862', help = "Job ID (s1861 or s1862)")
+    ap.add_argument("-alwaysCopyPair", action='store_true', default=False)
 ##    ap.add_argument("-mapprj", action='store_true', help="Include -mapprj tag at the command line if you wish to mapproject") # if "-mapprj" is NOT included at the command line, it defaults to False. if it IS, mapprj gets set to True
     ap.add_argument("-noP2D", action='store_true', help="Include -noP2D tag at the command line if you do NOT wish to run P2D") # if "-noP2D" is NOT included at the CL, it defaults to False. doP2D = not noP2D
     ap.add_argument("-rp", default=100, type=int, help="Reduce Percent, default = 100")
