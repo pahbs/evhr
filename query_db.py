@@ -106,9 +106,12 @@ def main(inTxt, ASPdir, batchID, jobID, noP2D, rp, debug): #the 3 latter args ar
     # 2/13 if SHAPE* is in the header, replace with shape to header can be passed
 
     # go ahead and get the name for the reQuery csv file. This csv will be a subset of the incsv, but including only those lines that had data missing and could not be processed # 4/5/2017
-    oldQvers = int(os.path.basename(inTxt).split('_')[-1].split('.')[0][1]) # this will grab the ? from the *_q?.txt to figure out which query version we are on (0 is initial)
-    newQvers = oldQvers + 1 # we will only need this if there are pairs with no data
-    newQtxt = inTxt.replace('q{}.txt'.format(oldQvers), 'q{}.txt'.format(newQvers))
+    try:
+        oldQvers = int(os.path.basename(inTxt).split('_')[-1].split('.')[0][1]) # this will grab the ? from the *_q?.txt to figure out which query version we are on (0 is initial)
+        newQvers = oldQvers + 1 # we will only need this if there are pairs with no data
+        newQtxt = inTxt.replace('q{}.txt'.format(oldQvers), 'q{}.txt'.format(newQvers))
+    except ValueError:
+        newQtxt = inTxt.replace('.txt', '_new.txt')
 
     # log ADAPT output for bash
     logdir = os.path.join(baseDir, 'queryLogs')
