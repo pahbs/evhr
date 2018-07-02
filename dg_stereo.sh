@@ -297,7 +297,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         eval $cmd
     else
         # DISCOVER processing needs these.
-        stereo_opts+=" --corr-kernel $corr_kern $corr_kern"
+        #stereo_opts+=" --corr-kernel $corr_kern $corr_kern" #mw 7/2 this was causing error in stereo call. (calling --corr-kernel twice in the command). temporarily comment
         stereo_opts+=" --subpixel-mode 2"
         stereo_opts+=" --filter-mode 1"
         stereo_opts+=" --cost-mode 2"
