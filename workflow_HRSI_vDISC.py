@@ -106,22 +106,7 @@ def run_asp(
     """
     # 6/26 3DSI08 parameters*
     #* added parameters corrKern_p and corrTime_p (14 total parameters including pairname)
-    # 3DSI08 params:
-##    test_p = 'false'
-##    adapt_p = 'false'
-##    map_p = 'false'
-##    runStereo_p = 'false'
-##    batch_p = 'batch{}'.format(batchID)
-##    rpc_p = ''
-##    nodes_p = 'false'
-##    nodesList_p = ''
-##    sgm_p = 'false'
-##    subpix_p = '7'
-##    erodeSize_p = '0'
-##    corrKern_p = '21'
-##    corrTime_p = '300'
-
-    # 7/17/2018: ANDES p3 / FL batch params
+    # 3DSI08 params: # 7/23
     test_p = 'false'
     adapt_p = 'false'
     map_p = 'false'
@@ -131,10 +116,25 @@ def run_asp(
     nodes_p = 'false'
     nodesList_p = ''
     sgm_p = 'false'
-    subpix_p = '21'
-    erodeSize_p = '1024'
+    subpix_p = '7'
+    erodeSize_p = '0'
     corrKern_p = '21'
-    corrTime_p = '600'
+    corrTime_p = '300'
+
+##    # 7/17/2018: ANDES p3 / FL batch params
+##    test_p = 'false'
+##    adapt_p = 'false'
+##    map_p = 'false'
+##    runStereo_p = 'false'
+##    batch_p = 'batch{}'.format(batchID)
+##    rpc_p = ''
+##    nodes_p = 'false'
+##    nodesList_p = ''
+##    sgm_p = 'false'
+##    subpix_p = '21'
+##    erodeSize_p = '1024'
+##    corrKern_p = '21'
+##    corrTime_p = '600'
 
     command = 'bash {} {} {} {} {} {} {} "{}" {} "{}" {} {} {} {} {}'.format(stereoCode, pairname, test_p, adapt_p, map_p, runStereo_p, batch_p, rpc_p, nodes_p, nodesList_p, sgm_p, subpix_p, erodeSize_p, corrKern_p, corrTime_p) # parameters specified by Paul specifically for andes mini batch. temporary most likely
     #subp.check_output([command])
