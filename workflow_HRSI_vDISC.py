@@ -157,6 +157,11 @@ def run_asp(
 
     print "\n Adding pair {} to completedPairs text file and recording run time information to spreadsheet".format(pairname)
 
+    #chmod on all the xml's in the imageDir
+    print " \n Running chmod on {}".format(os.path.join(imageDir, '*xml'))
+    os.system('chmod 777 {}'.format(os.path.join(imageDir, '*xml')))
+
+
     #* check for the final ovr file and if it exists, add pair to list
     finalFile = os.path.join(imageDir, '{}_ortho.tif.ovr'.format(pairname))
 ##    print finalFile #T
@@ -166,7 +171,7 @@ def run_asp(
         completed_pairs_txt = os.path.join(comp_pair_dir, 'batch{}_completedPairs.txt'.format(batchID))
         with open (completed_pairs_txt, 'a') as cp:
             cp.write('{}\n'.format(pairname))
-    else: print " Final ovr file ({}) does not exist. Something went wrong, please check the log.".format(finalFile)
+    else: print "\n Final ovr file ({}) does not exist. Something went wrong, please check the log.".format(finalFile)
     end_main = timer()
     total_time = find_elapsed_time(start_main, end_main)
 
