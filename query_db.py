@@ -9,6 +9,8 @@
 # Licence:     <your licence>
 
 
+# 9/18/2018: adding the four dg_stereo arguments (subpixKern, erodeSize, corrKern, corrTime) to the command line. these will be passed to workflow with python_script_args
+
 # 1/24: Instead of passing along preLogText list, write preLogText to text file (saved to inASP dir) and pass filename as arg; then read file into list on DISCOVER
 # 1/24: Previously made changes are commented throughout the code (search #*, ##*, #Q, ##Q)
 
@@ -44,7 +46,7 @@ def find_elapsed_time(start, end):
 # ...also for alreadyQueried and alreadyProcessed outattributes, only batchID, pairname, catID_1 and catID_2 columns might possibly be filled
 
 # function to check if pairname has: already been queried (i.e. directory exists in the same batch in inASP) or already been processed and synced back to DISCOVER
-def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCopyPair): # outAttributes will have as many outAttributes as are known at the time but with 'filler' in the last columm, which will be replaced with approporate reason before getting written to csv
+def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCopyPair, subpixKern, erodeSize, corrKern, corrTime): # outAttributes will have as many outAttributes as are known at the time but with 'filler' in the last columm, which will be replaced with approporate reason before getting written to csv
     alreadyProcessed = False # this starts at False and gets set to true if the pair was already processed
     queryCopyPair = True # start with the assumption that we have not queried/copied this pair for this batch and so we DO want to query/copy
 
@@ -475,7 +477,7 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, noP2D, rp, debug): #the 
             time_limit = '6-00:00:00'
             if sensor == 'WV03': time_limit = '8-00:00:00'
             num_nodes = '1'
-            python_script_args = 'python {} {} {} {} {}'.format(os.path.join(DISCdir, 'code', 'evhr', workflowCodeName), pairname, batchID, os.path.join(DISCdir, 'ASP'), preLogTextFile_DISC)
+            python_script_args = 'python {} {} {} {} {} {} {} {} {}'.format(os.path.join(DISCdir, 'code', 'evhr', workflowCodeName), pairname, batchID, os.path.join(DISCdir, 'ASP'), preLogTextFile_DISC, subpixKern, erodeSize, corrKern, corrTime)
             #print python_script_args #T
 
             # slurm.j file (calls the python code in discover for just one pair)
@@ -569,6 +571,11 @@ if __name__ == '__main__':
     ap.add_argument("batchID", help = "Batch identifier") #required
     ap.add_argument("-jobID", default='s1862', help = "Job ID (s1861 or s1862)")
     ap.add_argument("-alwaysCopyPair", action='store_true', default=False, help="Include -alwaysCopyPair tag if you want to copy pairs regardless of whether or not it's already been processed")
+    # subpixKern, erodeSize, corrKern, corrTime
+    ap.add_argument("-subpixKern", default=21, help = "Integer specifying the kernel size used for the subpixel method")
+    ap.add_argument("-erodeSize", default=0, help = "Isolated blobs with no more than this number of pixels will be removed")
+    ap.add_argument("-corrKern", default=21, help = "Integer specifying the size of the correlation kernel used in stereogrammetry")
+    ap.add_argument("-corrTime", default=300, help = "Integer specifying the time allotted to each tile for integer correlation")
 ##    ap.add_argument("-mapprj", action='store_true', help="Include -mapprj tag at the command line if you wish to mapproject") # if "-mapprj" is NOT included at the command line, it defaults to False. if it IS, mapprj gets set to True
     ap.add_argument("-noP2D", action='store_true', help="Include -noP2D tag at the command line if you do NOT wish to run P2D") # if "-noP2D" is NOT included at the CL, it defaults to False. doP2D = not noP2D
     ap.add_argument("-rp", default=100, type=int, help="Reduce Percent, default = 100")

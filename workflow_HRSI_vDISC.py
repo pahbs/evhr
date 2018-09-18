@@ -1,3 +1,7 @@
+# 9/18/2018: adding the four dg_stereo arguments (subpixKern, erodeSize, corrKern, corrTime) to the command line in query to be received here. these will be passed to dg_stereo along with other hardcoded vars
+
+
+
 #!/usr/local/other/SLES11.3/miniconda/4.0.5/gcc-5.3-sp3/bin/python
 ###############################################
 # Import and function definitions
@@ -14,6 +18,10 @@ def run_asp(
     batchID,
     ASPdir,
     preLogTextFile,
+    subpixKern,
+    erodeSize,
+    corrKern,
+    corrTime,
     stereoDef='/discover/nobackup/projects/boreal_nga/code/stereo.default',
     searchExtList=['.ntf','.tif','.NTF','.TIF']
     ):
@@ -64,7 +72,7 @@ def run_asp(
     print "\n"
 
     # print input parameters to log file:
-    print '-------parameters:-------'
+    print '-------pair parameters:-------'
     print 'test = {}'.format(test)
     print 'batchID = {}'.format(batchID)
     print 'imageDir = {}'.format(imageDir)
@@ -73,10 +81,7 @@ def run_asp(
     print "########################################\nQuery Log:\n{}\n########################################\n".format(preLogText)
 
 
-    # now call the script
-    print "Calling {} to perform stereo...".format(stereoCode)
-    print " Parameters: {} false false {}\n\n".format(pairname, batchDir)
-    #command = 'bash {} {} false false {}'.format(stereoCode, pairname, batchDir) # false for ADAPT and false for MAP -- command we've been using
+    #command = 'bash {} {} false false {}'.format(stereoCode, pairname, batchDir) # false for ADAPT and false for MAP -- OLD COMMAND
     """Command above is what we've been using. Parameters below are what Paul wants to run with ANDES mini for new dg_stereo (6/1/2018):
     pairname=$1
     TEST=false
@@ -90,23 +95,10 @@ def run_asp(
     SGM=false
     subpixk=25
     erode_max_size=1024
-
-    # ANDES mini p2 parameters (6/21ish)
-    test_p = 'false'
-    adapt_p = 'false'
-    map_p = 'false'
-    runStereo_p = 'false'
-    batch_p = 'batch{}'.format(batchID)
-    rpc_p = ''
-    nodes_p = 'false'
-    nodesList_p = ''
-    sgm_p = 'false'
-    subpix_p = '15'
-    erodeSize_p = '1024'
     """
-    # 6/26 3DSI08 parameters*
-    #* added parameters corrKern_p and corrTime_p (14 total parameters including pairname)
-    # 3DSI08 params: # 7/23
+
+    # 9/18/2018 - last 4 variables (change from batch to batch) are now being passed from query command line
+    # these variables more or less stay the same between runs:
     test_p = 'false'
     adapt_p = 'false'
     map_p = 'false'
@@ -116,29 +108,29 @@ def run_asp(
     nodes_p = 'false'
     nodesList_p = ''
     sgm_p = 'false'
-    subpix_p = '7'
-    erodeSize_p = '0'
-    corrKern_p = '21'
-    corrTime_p = '300'
 
-##    # 7/17/2018: ANDES p3 / FL batch params
-##    test_p = 'false'
-##    adapt_p = 'false'
-##    map_p = 'false'
-##    runStereo_p = 'false'
-##    batch_p = 'batch{}'.format(batchID)
-##    rpc_p = ''
-##    nodes_p = 'false'
-##    nodesList_p = ''
-##    sgm_p = 'false'
-##    subpix_p = '21'
-##    erodeSize_p = '1024'
-##    corrKern_p = '21'
-##    corrTime_p = '600'
+    # print params to log
+    print "Calling {} to perform stereo...".format(stereoCode)
+    print " Parameters for dg_stereo.sh :" #false false {}\n\n".format(pairname, batchDir)
+    print "  pairname: {}".format(pairname)
+    print "  TEST: {}".format(test_p)
+    print "  ADAPT: {}".format(adapt_p)
+    print "  MAP: {}".format(map_p)
+    print "  RUN_PSTEREO: {}".format(runStereo_p)
+    print "  batch_name: {}".format(batchID)
+    print "  rpcdem: {}".format(rpc_p)
+    print "  NODES: {}".format(nodes_p)
+    print "  nodeslist: {}".format(nodesList_p)
+    print "  SGM: {}".format(sgm_p)
+    print "  subpix_kern: {}".format(subpixKern)
+    print "  erode_max_size: {}".format(erodeSize)
+    print "  corr_kern: {}".format(corrKern)
+    print "  corr_time: {}\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n".format(corrTime)
 
-    command = 'bash {} {} {} {} {} {} {} "{}" {} "{}" {} {} {} {} {}'.format(stereoCode, pairname, test_p, adapt_p, map_p, runStereo_p, batch_p, rpc_p, nodes_p, nodesList_p, sgm_p, subpix_p, erodeSize_p, corrKern_p, corrTime_p) # parameters specified by Paul specifically for andes mini batch. temporary most likely
+
+    command = 'bash {} {} {} {} {} {} {} "{}" {} "{}" {} {} {} {} {}'.format(stereoCode, pairname, test_p, adapt_p, map_p, runStereo_p, batch_p, rpc_p, nodes_p, nodesList_p, sgm_p, subpixKern, erodeSize, corrKern, corrTime)
     #subp.check_output([command])
-    print 'New command: {}\n\n'.format(command)
+    print 'Command: {}\n'.format(command)
     os.system(command) # try this for now
 
 
@@ -210,9 +202,9 @@ def run_asp(
 if __name__ == "__main__":
     #import sys
     # get variables being passed along from query_db and run_asp with them
-    #run_asp( sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7], sys.argv[8]  )
-    # TESTING passing vars thru
-    run_asp( sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])#, sys.argv[5], sys.argv[6],  sys.argv[7], sys.argv[8],  sys.argv[9], sys.argv[10], sys.argv[11], sys.argv[12], sys.argv[13] ) # 13 arguments (plus python script)
+    # args:
+    # pairname, batchID, ASPdir, prelogtextFile, subpixKern, erodeSize, corrKern, corrTime
+    run_asp( sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7], sys.argv[8])#, sys.argv[5], sys.argv[6],  sys.argv[7], sys.argv[8],  sys.argv[9], sys.argv[10], sys.argv[11], sys.argv[12], sys.argv[13] ) # 13 arguments (plus python script)
 
 
 
