@@ -46,7 +46,7 @@ def find_elapsed_time(start, end):
 # ...also for alreadyQueried and alreadyProcessed outattributes, only batchID, pairname, catID_1 and catID_2 columns might possibly be filled
 
 # function to check if pairname has: already been queried (i.e. directory exists in the same batch in inASP) or already been processed and synced back to DISCOVER
-def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCopyPair, subpixKern, erodeSize, corrKern, corrTime): # outAttributes will have as many outAttributes as are known at the time but with 'filler' in the last columm, which will be replaced with approporate reason before getting written to csv
+def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCopyPair): # outAttributes will have as many outAttributes as are known at the time but with 'filler' in the last columm, which will be replaced with approporate reason before getting written to csv
     alreadyProcessed = False # this starts at False and gets set to true if the pair was already processed
     queryCopyPair = True # start with the assumption that we have not queried/copied this pair for this batch and so we DO want to query/copy
 
@@ -77,7 +77,7 @@ def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCo
     return (queryCopyPair, alreadyProcessed, preLogText)
 
 #def main(csv, ASPdir, batchID, mapprj=True, doP2D=True, rp=100): #* batchID to keep track of groups of pairs for processing # old way- without argparse
-def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, noP2D, rp, debug): #the 3 latter args are optional #n vinTxt replaces csv
+def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, subpixKern, erodeSize, corrKern, corrTime, noP2D, rp, debug): #the 3 latter args are optional #n vinTxt replaces csv
 
     tarzipBatch = False # set as variable for now, might use it but might get rid of it altogether
     test = False # set test to True if we want to run a test, which will not skip the pair if it's already in the hrsi_dsms directory on pubrepo
