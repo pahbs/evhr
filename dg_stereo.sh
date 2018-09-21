@@ -35,7 +35,7 @@ function gettag() {
 #Hardcoded Args
 tile_size=1024 #20480
 
-# Required Args
+# Required Args (optional args like ${N})
 pairname=$1
 TEST=$2           #true or false
 ADAPT=$3          #true or false
@@ -47,13 +47,14 @@ NODES=$8          #true or false
 nodeslist=$9
 SGM=${10}         #true or false
 # Using 7 for vegetation (very noisy, but resolves more gaps?) - use 21+ for mountains/glaciers/other terrain
-subpix_kern=${11}
+subpix_kern=${11:-21}
 # 1024 probably decent
-erode_max_size=${12}
+erode_max_size=${12:-1024}
 # 21 is default
-corr_kern=${13}
+corr_kern=${13:-21}
 # 300 is default; increase for more difficult areas.
-corr_time=${14} 
+corr_time=${14:-300}
+outdir_arg=${15} # optional argument to specify the out_root
 
 if [ "$ADAPT" = false ]; then
     TEST=false
@@ -61,18 +62,22 @@ fi
 
 if [ "$TEST" = true ]; then
     # Optional Args (stereogrammetry testing)
-    crop=${15}   #"0 190000 40000 40000"
-    #sa=${16}	   #if sgm is true, then use 1 for sgm or 2 for mgm
-    #cm=${17}      #cost mode for stereo
+    crop=${16}   #"0 190000 40000 40000"
+    #sa=${17}	   #if sgm is true, then use 1 for sgm or 2 for mgm
+    #cm=${18}      #cost mode for stereo
 fi
 
+# Set and create out_root
 if [ "$ADAPT" = true ]; then
     out_root=$NOBACKUP/outASP/${batch_name}
-    mkdir -p $out_root
 else
-    #out_root=$4 # output directory is 4th input if on DISCOVER
     out_root=/discover/nobackup/projects/boreal_nga/ASP/${batch_name}
 fi
+if ! [ -z "$outdir_arg" ]; then # if outdir parameter is supplied ($15) regardless of adapt/discover, set out_root to it
+    out_root=$outdir_arg
+fi
+mkdir -p $out_root
+
 
 left_catid="$(echo $pairname | awk -F '_' '{print $3}')"
 right_catid="$(echo $pairname | awk -F '_' '{print $4}')"
