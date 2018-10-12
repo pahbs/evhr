@@ -3,11 +3,10 @@
 # DEM Workflow: wv_correct, mosaic, mapproject, stereo, point2dem, hillshades, & orthoimages for individual stereopairs on DISCOVER & ADAPT
 # paul montesano, david shean, maggie wooten, christopher neigh
 #
-# pairname=WV01_20140603_102001002F42A400_1020010031EBEF00
 # example of call on DISCOVER:
 #     dg_stereo.sh $pairname false
 # example of call on ADAPT:
-#	  pupsh "hostname ~ 'himat115'" "dg_stereo.sh WV02_20160512_10300100548DD500_103001005422BA00 true true false true batch_andes '' true $HOME/code/nodes_ecotone_ngaproc false 21 1024"
+#	  pupsh "hostname ~ 'himat115'" "dg_stereo.sh WV02_20160512_10300100548DD500_103001005422BA00 true true false true batch_andes '' true $HOME/my_nodes false 7 0 21 300"
 #	    or
 #     dg_stereo.sh $pairname true
 #       or
@@ -15,14 +14,13 @@
 #
 # Dependencies (sh & python scripts run as cmd line tools):
 #   query_db_catid.py		script that returns the ADAPT dir of images of given catid
+#   ntfmos.sh               reads in indiv NTFs & XMLs from the query, runs wv_correct and then dg_mosaic
 #   proj_select.py          get the best prj used to mapproject input
 #   utm_proj_select.py		force get UTM prj for DEM and ortho; edit to script from pygeotools to force select UTM zone (instead of best prj); 
-#   color_hs.py
-#   ntfmos.sh
-#   dg_stereo_int.py
-#   warptool.py
-# Note: on ADAPT, will run parallel_stereo on launch node only, thus, no nodeslist needed.
-
+#   color_hs.py             creates color-shaded relief and hillshades versions of the DEMs
+#   dg_stereo_int.py        calcs the intersection between to images
+#   warptool.py             performs warping and resampling of mutiple input
+#
 
 t_start=$(date +%s)
 
@@ -46,7 +44,7 @@ rpcdem=$7         #can be blank var ''
 NODES=$8          #true or false
 nodeslist=$9
 SGM=${10}         #true or false
-# Using 7 for vegetation (very noisy, but resolves more gaps?) - use 21+ for mountains/glaciers/other terrain
+# Using 7 for vegetation (very noisy, but resolves more gaps? - probably changing to 11 or 13 due to noise) - use 21+ for mountains/glaciers/other terrain
 subpix_kern=${11:-21}
 # 1024 probably decent
 erode_max_size=${12:-1024}
@@ -152,10 +150,17 @@ if [ ! -e $in_left ] || [ ! -e $in_right  ] ; then
         fi
     fi
 fi
+count_right=$(ls ${out_root}/${pairname}/*${right_catid}*P1BS*.xml | wc -l)
+count_left=$(ls ${out_root}/${pairname}/*${left_catid}*P1BS*.xml | wc -l)
+
+echo "Count of right xmls: ${count_right}"
+echo "Count of left xmls: ${count_right}"
+if [ "$count_right" -lt "1" ] && [ "$count_left" -lt "1" ] ; then echo "Query did not return input. Exiting." ; exit 1 ; fi
 
 if [ ! -e "${out}-PC.tif" ] ; then
     echo; echo "Running wv_correct and dg_mosaic to create:"; echo "${in_left}"; echo "${in_right}"
     ntfmos.sh ${out_root}/${pairname}
+    if [ ! -e ${in_left} ] && [ ! -e ${in_right} ] ; then echo "ntfmos.sh did not produce a left and right strip. Can't run stereogrammetry. Exiting." ; exit 1 ; fi
 fi
 
 if [ ! -e $in_left ] && [ ! -e ${in_left%.*}.xml ]; then
@@ -163,6 +168,7 @@ if [ ! -e $in_left ] && [ ! -e ${in_left%.*}.xml ]; then
 else
     in_left_xml=${in_left%.*}.xml
 fi
+
 if [ ! -e $in_right ] && [ ! -e ${in_right%.*}.xml ]; then
     in_right_xml=$(echo $(ls ${out_root}/${pairname}/*${right_catid}*P1BS*.xml | grep -v aux | head -1))
 else
@@ -173,10 +179,13 @@ fi
 if [ "$MAP" = true ] ; then
     echo; echo "Determine RPCDEM prj used to mapproject input prior to stereo ..."
     proj_rpcdem=$(proj_select.py ${rpcdem})
+    if [ -z $proj_rpcdem ] ; then echo "proj_select.py failed. Exiting." ; exit 1 ; fi
 fi
 
 echo; echo "Determine output UTM prj, and native resolution ..."
 proj=$(utm_proj_select.py ${in_left_xml})
+if [ -z $proj ] ; then echo "utm_proj_select.py failed. Exiting." ; exit 1 ; fi
+
 echo "Projection: ${proj}"
 
 if grep -q MEANPRODUCTGSD $in_left_xml ; then
@@ -220,6 +229,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         echo $proj_rpcdem
         echo "Computing intersection extent in projected coordinates:"
         map_extent=$(dg_stereo_int.py $in_left_xml $in_right_xml "$proj_rpcdem")
+        if [ -z $map_extent ] ; then echo "dg_stereo_int.py failed. Exiting." ; exit 1 ; fi
         echo $map_extent; echo
 
         for in_img in $in_left $in_right; do
@@ -232,9 +242,11 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
             fi
         done
         rpcdem_warp=${out_root}/${pairname}/$(basename ${rpcdem%.*})_warp.tif
+        if [ ! -e ${in_img%.tif}${outext}.tif ] ; then echo "mapproject failed. Exiting." ; exit 1 ; fi
         if [ ! -e $rpcdem_warp ] ; then
             echo; echo "Clip the VRT rpcdem with the mapprojected extent..."; echo
             warptool.py -tr 'last' -te 'first' ${in_img%.tif}${outext}.tif $rpcdem -outdir ${out_root}/${pairname}
+            if [ ! -e $rpcdem_warp ] ; then echo "warptool failed. Exiting." ; exit 1 ; fi
         fi
         # Rename rpcdem to the clipped file
         rpcdem=$rpcdem_warp
@@ -328,6 +340,7 @@ else
         echo; echo "Convert PC.tif from virtual to real"; echo
         eval time gdal_translate $gdal_opts ${out}-PC.tif ${out}-PC_full.tif
         mv ${out}-PC_full.tif ${out}-PC.tif
+        if [ ! -e ${out}-PC.tif ] ; then echo "gdal_translate failed to create full PC. Exiting." ; exit 1 ; fi
     fi
     if [ "$RUN_PSTEREO" = true ] ; then
         echo; echo "Removing intermediate parallel_stereo dirs..."
@@ -380,7 +393,7 @@ else
         fi
         
     done
-
+    
     if [[ ! -z $cmd_list ]] ; then
 
        	if (( $ncpu > 15 )) ; then
@@ -390,6 +403,8 @@ else
         fi
         eval parallel -verbose -j $njobs ::: $cmd_list
     fi
+    num_dems=$(ls ${out}-DEM_*m.tif | wc -l)
+    if [ "$num_dems" -lt "1" ] ; then echo "point2dem failed to create at least 1 dem. Exiting." ; exit 1 ; fi
 
     # Color Shaded Relief Generation
     mean=$(gdalinfo -stats $stats_dem | grep MEAN | awk -F '=' '{print $2}')
@@ -416,7 +431,8 @@ else
         eval parallel -verbose -j 10 ::: $cmd_list
         rm -v ${out}*color.tif
     fi
-
+    num_hs=$(ls ${out}-DEM_*color_hs.tif | wc -l)
+    if [ "$num_hs" -lt "1" ] ; then echo "color_hs.py failed to create at least 1 color_hs.tif. Exiting." ; exit 1 ; fi
     ortho_opts="--nodata-value 0"
 
     map_opts="$ortho_opts"
@@ -465,6 +481,9 @@ else
             mv ${out_root}/${pairname}/${pairname}-tile-0.tif ${out_ortho}
         fi
     fi
+
+    if [ ! -e ${out_ortho} ] ; then echo "Creation of ortho failed. Exiting." ; exit 1 ; fi
+
     if [ ! -e ${out_ortho%.*}.tif.ovr ] ; then
         echo "Building overviews in background for:"; echo "$out_ortho"
         gdaladdo -ro -r average ${out_ortho} 2 4 8 16 32 64 &
