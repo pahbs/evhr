@@ -31,7 +31,7 @@ function gettag() {
 }
 
 #Hardcoded Args
-tile_size=1024 #20480
+tile_size=1500 #2048 #1024 #20480
 
 # Required Args (optional args like ${N})
 pairname=$1
@@ -71,7 +71,7 @@ if [ "$ADAPT" = true ]; then
 else
     out_root=/discover/nobackup/projects/boreal_nga/ASP/${batch_name}
 fi
-if ! [ -z "$outdir_arg" ]; then # if outdir parameter is supplied ($15) regardless of adapt/discover, set out_root to it
+if [ ! -z "$outdir_arg" ]; then # if outdir parameter is supplied ($15) regardless of adapt/discover, set out_root to it
     out_root=$outdir_arg
 fi
 mkdir -p $out_root
@@ -150,8 +150,8 @@ if [ ! -e $in_left ] || [ ! -e $in_right  ] ; then
         fi
     fi
 fi
-count_right=$(ls ${out_root}/${pairname}/*${right_catid}*P1BS*.xml | wc -l)
-count_left=$(ls ${out_root}/${pairname}/*${left_catid}*P1BS*.xml | wc -l)
+count_right=$(ls ${out_root}/${pairname}/*${right_catid}*.xml | wc -l)
+count_left=$(ls ${out_root}/${pairname}/*${left_catid}*.xml | wc -l)
 
 echo "Count of right xmls: ${count_right}"
 echo "Count of left xmls: ${count_right}"
@@ -179,12 +179,12 @@ fi
 if [ "$MAP" = true ] ; then
     echo; echo "Determine RPCDEM prj used to mapproject input prior to stereo ..."
     proj_rpcdem=$(proj_select.py ${rpcdem})
-    if [ -z $proj_rpcdem ] ; then echo "proj_select.py failed. Exiting." ; exit 1 ; fi
+    if [ -z "${proj_rpcdem}" ] ; then echo "proj_select.py failed. Exiting." ; exit 1 ; fi
 fi
 
 echo; echo "Determine output UTM prj, and native resolution ..."
 proj=$(utm_proj_select.py ${in_left_xml})
-if [ -z $proj ] ; then echo "utm_proj_select.py failed. Exiting." ; exit 1 ; fi
+if [ -z "${proj}" ] ; then echo "utm_proj_select.py failed. Exiting." ; exit 1 ; fi
 
 echo "Projection: ${proj}"
 
@@ -263,7 +263,9 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
 
     stereo_opts+=" --subpixel-kernel $subpix_kern $subpix_kern"
     stereo_opts+=" --erode-max-size $erode_max_size"
-    stereo_opts+=" --corr-kernel $corr_kern $corr_kern"
+    if [ "$SGM" = false ] ; then
+        stereo_opts+=" --corr-kernel $corr_kern $corr_kern"
+    fi
     stereo_opts+=" --corr-timeout $corr_time"
     stereo_opts+=" --individually-normalize"
     stereo_opts+=" --tif-compress LZW"
@@ -285,7 +287,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     fi
 
     if [ "$RUN_PSTEREO" = true ] && [ "$SGM" = true ] ; then
-        # SGM stereo runs. Not applicable for our DISCOVER processing
+        echo "SGM stereo runs - Not applicable for our DISCOVER processing yet"
         if [ ! -z "$sa" ]; then
             sgm_opts+=" --stereo-algorithm $sa"
         else
