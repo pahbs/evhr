@@ -7,10 +7,6 @@
 #     dg_stereo.sh $pairname false
 # example of call on ADAPT:
 #	  pupsh "hostname ~ 'himat115'" "dg_stereo.sh WV02_20160512_10300100548DD500_103001005422BA00 true true false true batch_andes '' true $HOME/my_nodes false 7 0 21 300"
-#	    or
-#     dg_stereo.sh $pairname true
-#       or
-#     pupsh "hostname ~ 'ecotone16'" "dg_stereo_par.sh /att/pubrepo/DEM/hrsi_dsm/list_pairname"
 #
 # Dependencies (sh & python scripts run as cmd line tools):
 #   query_db_catid.py		script that returns the ADAPT dir of images of given catid
@@ -30,7 +26,7 @@ function gettag() {
     echo $(grep "$tag" $xml | awk -F'[<>]' '{print $3}')
 }
 
-#Hardcoded Args
+#Hardcoded Args (SGM testing)
 tile_size=1500 #2048 #1024 #20480
 
 # Required Args (optional args like ${N})
@@ -60,7 +56,7 @@ fi
 
 if [ "$TEST" = true ]; then
     # Optional Args (stereogrammetry testing)
-    crop=${16}   #"0 190000 40000 40000"
+    crop=${16}    #"0 190000 40000 40000"
     #sa=${17}	   #if sgm is true, then use 1 for sgm or 2 for mgm
     #cm=${18}      #cost mode for stereo
 fi
@@ -263,9 +259,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
 
     stereo_opts+=" --subpixel-kernel $subpix_kern $subpix_kern"
     stereo_opts+=" --erode-max-size $erode_max_size"
-    if [ "$SGM" = false ] ; then
-        stereo_opts+=" --corr-kernel $corr_kern $corr_kern"
-    fi
+    stereo_opts+=" --corr-kernel $corr_kern $corr_kern"
     stereo_opts+=" --corr-timeout $corr_time"
     stereo_opts+=" --individually-normalize"
     stereo_opts+=" --tif-compress LZW"
@@ -299,7 +293,6 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
             sgm_opts+=" --cost-mode 3"
         fi
         sgm_opts+=" --corr-memory-limit-mb 5000"
-        sgm_opts+=" --corr-kernel 7 7"
         sgm_opts+=" --corr-tile-size $tile_size"
         sgm_opts+=" --xcorr-threshold -1"
         sgm_opts+=" --subpixel-mode 0"
@@ -315,10 +308,9 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         echo $cmd
         eval $cmd
     else
-        # DISCOVER processing needs these.
-        #stereo_opts+=" --corr-kernel $corr_kern $corr_kern" #mw 7/2 this was causing error in stereo call. (calling --corr-kernel twice in the command). temporarily comment
-        stereo_opts+=" --subpixel-mode 2"
-        stereo_opts+=" --filter-mode 1"
+        # Non-SGM processing needs these.
+        stereo_opts+=" --subpixel-mode 2" #affine adaptive window, Bayes EM weighting
+        stereo_opts+=" --filter-mode 1"   #discard pixels for which % of neighbor disparities are outliers (inliers are within rm-threshold=3 of current disparity; threshold % must exceed rm-min-matches=60%)
         stereo_opts+=" --cost-mode 2"
 
         if [ "$RUN_PSTEREO" = true ] && [ "$ADAPT" = true ] ; then
