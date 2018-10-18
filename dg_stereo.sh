@@ -13,7 +13,8 @@
 #   ntfmos.sh               reads in indiv NTFs & XMLs from the query, runs wv_correct and then dg_mosaic
 #   proj_select.py          get the best prj used to mapproject input
 #   utm_proj_select.py		force get UTM prj for DEM and ortho; edit to script from pygeotools to force select UTM zone (instead of best prj); 
-#   color_hs.py             creates color-shaded relief and hillshades versions of the DEMs
+#   ---- removed ----> color_hs.py             creates color-shaded relief and shaded relief versions of the DEMs
+#   hs_dem.sh				creates shaded-relief versions of the DEMs
 #   dg_stereo_int.py        calcs the intersection between to images
 #   warptool.py             performs warping and resampling of mutiple input
 #
@@ -240,7 +241,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         rpcdem_warp=${out_root}/${pairname}/$(basename ${rpcdem%.*})_warp.tif
         if [ ! -e ${in_img%.tif}${outext}.tif ] ; then echo "mapproject failed. Exiting." ; exit 1 ; fi
         if [ ! -e $rpcdem_warp ] ; then
-            echo; echo "Clip the VRT rpcdem with the mapprojected extent..."; echo
+            echo; echo "Clip the rpcdem with the mapprojected extent..."; echo
             warptool.py -tr 'last' -te 'first' ${in_img%.tif}${outext}.tif $rpcdem -outdir ${out_root}/${pairname}
             if [ ! -e $rpcdem_warp ] ; then echo "warptool failed. Exiting." ; exit 1 ; fi
         fi
@@ -279,9 +280,9 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     if [ "$NODES" = true  ] ; then
         par_opts+=" --nodes-list=$nodeslist"
     fi
-
+    echo; echo "Point-Cloud Generation (stereogrammetry)..." ; echo
     if [ "$RUN_PSTEREO" = true ] && [ "$SGM" = true ] ; then
-        echo "SGM stereo runs - Not applicable for our DISCOVER processing yet"
+        echo ; echo "Correllation with Semi-Global Matching (SGM) - not applicable for our DISCOVER processing yet." ; echo
         if [ ! -z "$sa" ]; then
             sgm_opts+=" --stereo-algorithm $sa"
         else
@@ -308,7 +309,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         echo $cmd
         eval $cmd
     else
-        # Non-SGM processing needs these.
+        echo; echo "Correllation (naive) with Normalized Cross Correlation." ; echo
         stereo_opts+=" --subpixel-mode 2" #affine adaptive window, Bayes EM weighting
         stereo_opts+=" --filter-mode 1"   #discard pixels for which % of neighbor disparities are outliers (inliers are within rm-threshold=3 of current disparity; threshold % must exceed rm-min-matches=60%)
         stereo_opts+=" --cost-mode 2"
@@ -329,7 +330,7 @@ if [ ! -e "${out}-PC.tif" ] ; then
     echo; echo "Stereogrammetry unsuccessful. Exiting."
     exit 1
 else
-    echo; echo "Stereo point-cloud file exists."
+    echo; echo "Point-Cloud file (from stereogrammetry) exists." ; echo
     if [ "$ADAPT" = true ] && gdalinfo ${out}-PC.tif | grep -q VRT ; then
         echo; echo "Convert PC.tif from virtual to real"; echo
         eval time gdal_translate $gdal_opts ${out}-PC.tif ${out}-PC_full.tif
@@ -350,18 +351,18 @@ else
     mid_dem=${out}-DEM_${mid_res}m.tif
     fine_dem=${out}-DEM_${fine_res}m.tif
 
-    # DEM Generation
+    echo; echo "DEM Generation..."; echo
     cmd_list=''
     dem_ndv=-99
 
     base_dem_opts=" --remove-outliers --remove-outliers-params 75.0 3.0"
     base_dem_opts+=" --threads 4"
     base_dem_opts+=" --t_srs \"$proj\""
-    echo; echo "Check for dems..."; echo
+
     for dem_res in $stats_res $mid_res $fine_res ; do
         dem_opts="$base_dem_opts"
         if [ ! -e ${out}-DEM_${dem_res}m.tif ]; then
-            echo "Creating DEM at ${dem_res}m ..."
+            
             dem_opts+=" --nodata-value $dem_ndv"
     	    dem_opts+=" --tr $dem_res"
             if [ "$dem_res" = "$stats_res" ] ; then
@@ -369,17 +370,15 @@ else
             fi
             dem_opts+=" -o ${out}_${dem_res}m"
 
-          echo; date; echo;
-          echo point2dem $dem_opts ${out}-PC.tif
-          echo
-
           if [ "$parallel_point2dem" = true ] ; then
               cmd=''
-              cmd+="time point2dem $dem_opts ${out}-PC.tif; "
+              cmd+="point2dem $dem_opts ${out}-PC.tif; "
               cmd+="mv ${out}_${dem_res}m-DEM.tif ${out}-DEM_${dem_res}m.tif; "
               cmd_list+=\ \'$cmd\'
           else
-              eval time point2dem $dem_opts ${out}-PC.tif
+              echo "    Creating DEM at ${dem_res}m ..."
+              cmd="point2dem $dem_opts ${out}-PC.tif"
+              echo $cmd ; eval $cmd
               mv ${out}_${dem_res}m-DEM.tif ${out}-DEM_${dem_res}m.tif
           fi
         else
@@ -395,38 +394,17 @@ else
         else
             njobs=2
         fi
-        eval parallel -verbose -j $njobs ::: $cmd_list
+        echo; date; echo;
+        eval parallel --progress -verbose -j $njobs ::: $cmd_list
     fi
     num_dems=$(ls ${out}-DEM_*m.tif | wc -l)
     if [ "$num_dems" -lt "1" ] ; then echo "point2dem failed to create at least 1 dem. Exiting." ; exit 1 ; fi
 
-    # Color Shaded Relief Generation
-    mean=$(gdalinfo -stats $stats_dem | grep MEAN | awk -F '=' '{print $2}')
-    stddev=$(gdalinfo -stats $stats_dem | grep STDDEV | awk -F '=' '{print $2}')
+    echo; echo "Shaded Relief Generation..." ; echo
+    hs_dem.sh ${out}-DEM_${fine_res}m.tif ${out}-DEM_${mid_res}m.tif ${out}-DEM_${stats_res}m.tif
 
-    min=$(echo $mean $stddev | awk '{print $1 - $2}')
-    max=$(echo $mean $stddev | awk '{print $1 + $2}')
-
-    cmd_list=''
-    echo; echo "Check for color-shaded reliefs..."; echo
-    for dem in $stats_dem $mid_dem $fine_dem ; do
-    	cmd=''
-        if [ ! -e ${dem%.*}_color_hs.tif.ovr ]; then
-            rm -f ${dem%.*}_color_hs.tif
-
-    	    cmd+="time color_hs.py $dem -clim $min $max -hs_overlay -alpha .8; "
-    	    cmd_list+=\ \'$cmd\'
-        else
-            echo "Finished: ${dem%.*}_color_hs.tif"
-        fi
-    done
-    if [[ ! -z $cmd_list ]]; then
-        echo; echo "Do all colorshades and hillshades in parallel"; echo
-        eval parallel -verbose -j 10 ::: $cmd_list
-        rm -v ${out}*color.tif
-    fi
-    num_hs=$(ls ${out}-DEM_*color_hs.tif | wc -l)
-    if [ "$num_hs" -lt "1" ] ; then echo "color_hs.py failed to create at least 1 color_hs.tif. Exiting." ; exit 1 ; fi
+    num_hs=$(ls ${out}-DEM_*hs_az*.tif | wc -l)
+    if [ "$num_hs" -lt "1" ] ; then echo "hs_dem.sh failed to create at least 1 shaded-relief image. Exiting." ; exit 1 ; fi
     ortho_opts="--nodata-value 0"
 
     map_opts="$ortho_opts"
@@ -437,14 +415,16 @@ else
     # else no mosiacs done, in_left is an xml used for proj and native_res; need indiv scenes indiv ortho'd then dem_mosaic
     if [ ! -e ${out_ortho} ] ; then
         if [ -e ${mos4ortho_img} ] ; then
-            echo; echo "Mapproject at ${native_res}m ${mos4ortho_img} onto ${stats_dem}"; echo
+            echo; echo "Orthoimage Generation @ native resolution..."; echo
+            echo "    $(basename ${mos4ortho_img}) onto $(basename ${stats_dem})"
+            echo "    Res: ${native_res}m"; echo
             map_opts=" --tr $native_res"
             map_args="$stats_dem $mos4ortho_img ${mos4ortho_img%.*}.xml ${out_ortho}"
-            time mapproject $map_opts $map_args
+            mapproject $map_opts $map_args
         else
             # This case exists to handle pairname dirs that dont have *.r100.tif; so, for each ntf run mapprj then use dem_mosaic
             echo; echo "Mapproject each indiv NTF onto ${stats_dem}"; echo
-            echo "CATID: ${mos4ortho_catid}"
+            echo "    CATID: ${mos4ortho_catid}"
             ntf_list=$(ls ${out_root}/${pairname} | grep -e "${mos4ortho_catid}" | grep -i P1BS | egrep 'ntf|tif' | grep -v 'corr')
             
             if [ ! "$ntf_list" ] && [ "$ADAPT" = true ]  ; then
@@ -461,17 +441,16 @@ else
                 map_args="$stats_dem ${ntf_fn} ${ntf_fn%.*}.xml $indiv_ortho"
     	        echo $ntf_fn
     	        cmd=''
-    	        cmd+="time mapproject $map_opts $map_args; "
+    	        cmd+="mapproject $map_opts $map_args; "
                 cmd_list+=\ \'$cmd\'
             done
 
-            echo; echo "Do orthos for each P1BS scene running mapproject in parallel"; echo
+            echo; echo "Do orthos for each P1BS scene running mapproject in parallel..."; echo
             eval parallel -verbose -j 6 ::: $cmd_list
 
-            echo; echo "Do dem_mosaic at native res of orthos"; echo
-            echo; echo "dem_mosaic --tr $native_res --threads $ncpu `ls ${out_root}/${pairname}/*${ortho_ext}` -o ${out_root}/${pairname}/${pairname}"; echo
-
-            time dem_mosaic --tr $native_res --threads $ncpu `ls ${out_root}/${pairname}/*${ortho_ext}` -o ${out_root}/${pairname}/${pairname}
+            echo; echo "Do dem_mosaic at native res of orthos..."; echo
+            cmd="dem_mosaic --tr $native_res --threads $ncpu `ls ${out_root}/${pairname}/*${ortho_ext}` -o ${out_root}/${pairname}/${pairname}"
+            echo $cmd ; eval $cmd ; echo
             mv ${out_root}/${pairname}/${pairname}-tile-0.tif ${out_ortho}
         fi
     fi
@@ -479,16 +458,20 @@ else
     if [ ! -e ${out_ortho} ] ; then echo "Creation of ortho failed. Exiting." ; exit 1 ; fi
 
     if [ ! -e ${out_ortho%.*}.tif.ovr ] ; then
-        echo "Building overviews in background for:"; echo "$out_ortho"
-        gdaladdo -ro -r average ${out_ortho} 2 4 8 16 32 64 &
-    fi
-    if [ ! -e ${out_ortho%.*}_${mid_res}m.tif.ovr ] ; then
-        echo; echo "Simple gdal_translate to coarsen native_res ortho..."; echo
-        gdal_translate -tr ${mid_res} ${mid_res} ${out_ortho} ${out_ortho%.*}_${mid_res}m.tif
-        gdaladdo -ro -r average ${out_ortho%.*}_${mid_res}m.tif 2 4 8 16 32 64 &
+
+        echo; echo "Orthoimage Generation @ reduced resolution..."; echo
+        echo "    Res: ${mid_res}m"; echo
+        cmd="gdal_translate -tr ${mid_res} ${mid_res} ${out_ortho} ${out_ortho%.*}_${mid_res}m.tif"
+        eval $cmd
+        echo; echo "Overview Generation in parallel for orthoimages..."; echo
+        do_gdaladdo.sh ${out_ortho} ${out_ortho%.*}_${mid_res}m.tif
+
     fi
     if [ "$ADAPT" = true ] ; then
-        echo; echo "Writing symlinks"; echo
+        echo; echo "Symlink Generation..."; echo
+        mkdir -p ${out_root}/_ortho
+        mkdir -p ${out_root}/_dem
+        mkdir -p ${out_root}/_hs
         for i in $out_ortho ${out_ortho%.*}_${mid_res}m.tif ; do
             ln -sfv ${i} ${out_root}/_ortho/$(basename ${i})
         done
@@ -496,9 +479,9 @@ else
             dembase=$(basename ${i})
             ln -sfv ${i} ${out_root}/_dem/${pairname}_${dembase:4}
 
-            if [ -e ${dembase%.*}_color_hs.tif ] ; then
-                colorbase=${dembase%.*}_color_hs.tif
-                ln -sfv ${i%.*}_color_hs.tif ${out_root}/_color_hs/${pairname}_${colorbase:4}
+            if [ -e ${dembase%.*}_hs_az315.tif ] ; then
+                hsbase=${dembase%.*}_hs_az315.tif
+                ln -sfv ${i%.*}_hs_az315.tif ${out_root}/_hs/${pairname}_${hsbase:4}
             fi
         done
     fi
