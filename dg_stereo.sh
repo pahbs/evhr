@@ -28,7 +28,7 @@ function gettag() {
 }
 
 #Hardcoded Args (SGM testing)
-tile_size=1500 #2048 #1024 #20480
+tile_size=5000 #1500 #2048 #1024 #20480
 
 # Required Args (optional args like ${N})
 pairname=$1
@@ -48,7 +48,7 @@ erode_max_size=${12:-1024}
 # 21 is default
 corr_kern=${13:-21}
 # 300 is default; increase for more difficult areas.
-corr_time=${14:-300}
+corr_time=${14:-800}
 outdir_arg=${15} # optional argument to specify the out_root
 
 if [ "$ADAPT" = false ]; then
@@ -140,7 +140,6 @@ if [ ! -e $in_left ] || [ ! -e $in_right  ] ; then
             done
 
             # Do the ADAPT db querying in parallel
-        
             eval parallel --delay 2 -verbose -j 2 ::: $cmd_list
         else
             echo; echo "Workflow not running on ADAPT, querying for input already done."; echo
@@ -311,8 +310,8 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     else
         echo; echo "Correllation (naive) with Normalized Cross Correlation." ; echo
         stereo_opts+=" --subpixel-mode 2" #affine adaptive window, Bayes EM weighting
-        stereo_opts+=" --filter-mode 1"   #discard pixels for which % of neighbor disparities are outliers (inliers are within rm-threshold=3 of current disparity; threshold % must exceed rm-min-matches=60%)
-        stereo_opts+=" --cost-mode 2"
+        stereo_opts+=" --filter-mode 1"   #discard pixels for which % of neighbor disps are outliers (inliers: w/in rm-threshold=3 of current disp; thresh % must > rm-min-matches=60%)
+        stereo_opts+=" --cost-mode 2"     # norm cross corr
 
         if [ "$RUN_PSTEREO" = true ] && [ "$ADAPT" = true ] ; then
             echo; echo $stereo_args ; echo
@@ -476,13 +475,9 @@ else
             ln -sfv ${i} ${out_root}/_ortho/$(basename ${i})
         done
         for i in $stats_dem $mid_dem $fine_dem ; do
-            dembase=$(basename ${i})
-            ln -sfv ${i} ${out_root}/_dem/${pairname}_${dembase:4}
-
-            if [ -e ${dembase%.*}_hs_az315.tif ] ; then
-                hsbase=${dembase%.*}_hs_az315.tif
-                ln -sfv ${i%.*}_hs_az315.tif ${out_root}/_hs/${pairname}_${hsbase:4}
-            fi
+            demstem=$(basename ${i%.*})
+            ln -sfv ${i} ${out_root}/_dem/${pairname}_${demstem:4}.tif
+            ln -sfv ${i%.*}_hs_az315.tif ${out_root}/_hs/${pairname}_${demstem:4}_hs_az315.tif
         done
     fi
 
