@@ -299,7 +299,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         sgm_opts+=" --median-filter-size 3"
         sgm_opts+=" --texture-smooth-size 7"
         sgm_opts+=" --texture-smooth-scale 0"
-        sgm_opts+=" --threads 10"
+        sgm_opts+=" --threads 14"
         sgm_opts+=" $stereo_opts"
 
         echo; date; echo;
