@@ -28,7 +28,7 @@ function gettag() {
 }
 
 #Hardcoded Args (SGM testing)
-tile_size=5000 #1500 #2048 #1024 #20480
+tile_size=4000 #1500 #2048 #1024 #20480
 
 # Required Args (optional args like ${N})
 pairname=$1
@@ -271,7 +271,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     # Done like this so, if present, rpcdem is last
     stereo_args="${in_left%.*}${outext}.tif ${in_right%.*}${outext}.tif ${in_left%.*}${outext}.xml ${in_right%.*}${outext}.xml ${out} $stereo_args"
 
-    # ADAPT processing needs these
+    # Processing with 'parallel_stereo' needs these
     par_opts="--job-size-w $tile_size --job-size-h $tile_size"
     par_opts+=" --threads-singleprocess $ncpu"
     par_opts+=" --processes $ncpu"
@@ -281,7 +281,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     fi
     echo; echo "Point-Cloud Generation (stereogrammetry)..." ; echo
     if [ "$RUN_PSTEREO" = true ] && [ "$SGM" = true ] ; then
-        echo ; echo "Correllation with Semi-Global Matching (SGM) - not applicable for our DISCOVER processing yet." ; echo
+        echo ; echo "Correllation with Semi-Global Matching (SGM) - run on ADAPT or DISCOVER." ; echo
         if [ ! -z "$sa" ]; then
             sgm_opts+=" --stereo-algorithm $sa"
         else
@@ -308,12 +308,12 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         echo $cmd
         eval $cmd
     else
-        echo; echo "Correllation (naive) with Normalized Cross Correlation." ; echo
+        echo; echo "Correllation (naive) with Normalized Cross Correlation (ncc)  - run on ADAPT or DISCOVER." ; echo
         stereo_opts+=" --subpixel-mode 2" #affine adaptive window, Bayes EM weighting
         stereo_opts+=" --filter-mode 1"   #discard pixels for which % of neighbor disps are outliers (inliers: w/in rm-threshold=3 of current disp; thresh % must > rm-min-matches=60%)
         stereo_opts+=" --cost-mode 2"     # norm cross corr
 
-        if [ "$RUN_PSTEREO" = true ] && [ "$ADAPT" = true ] ; then
+        if [ "$RUN_PSTEREO" = true ] ; then
             echo; echo $stereo_args ; echo
             echo; echo "parallel_stereo -e $e $par_opts $stereo_opts $stereo_args"; echo
             eval time parallel_stereo -e $e $par_opts $stereo_opts $stereo_args
@@ -330,7 +330,7 @@ if [ ! -e "${out}-PC.tif" ] ; then
     exit 1
 else
     echo; echo "Point-Cloud file (from stereogrammetry) exists." ; echo
-    if [ "$ADAPT" = true ] && gdalinfo ${out}-PC.tif | grep -q VRT ; then
+    if gdalinfo ${out}-PC.tif | grep -q VRT ; then
         echo; echo "Convert PC.tif from virtual to real"; echo
         eval time gdal_translate $gdal_opts ${out}-PC.tif ${out}-PC_full.tif
         mv ${out}-PC_full.tif ${out}-PC.tif
