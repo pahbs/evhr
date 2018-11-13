@@ -102,12 +102,12 @@ def run_asp(
     test_p = 'false'
     adapt_p = 'false'
     map_p = 'false'
-    runStereo_p = 'false'
+    runStereo_p = 'true' # temp for test SGM batch
     batch_p = 'batch{}'.format(batchID)
     rpc_p = ''
     nodes_p = 'false'
     nodesList_p = ''
-    sgm_p = 'false'
+    sgm_p = 'true'  # temp for test SGM batch
 
     # print params to log
     print "Calling {} to perform stereo...".format(stereoCode)
