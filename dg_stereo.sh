@@ -73,7 +73,6 @@ if [ ! -z "$outdir_arg" ]; then # if outdir parameter is supplied ($15) regardle
 fi
 mkdir -p $out_root
 
-
 left_catid="$(echo $pairname | awk -F '_' '{print $3}')"
 right_catid="$(echo $pairname | awk -F '_' '{print $4}')"
 
@@ -81,7 +80,29 @@ if [ -z "$SGM" ]; then
 	SGM=false
 fi
 
-ncpu=$(cat /proc/cpuinfo | egrep "core id|physical id" | tr -d "\n" | sed s/physical/\\nphysical/g | grep -v ^$ | sort | uniq | wc -l)
+# Get # of THREADs (aka siblings aka logical cores) per CORE
+nthread_core=$(lscpu | awk '/^Thread/ {threads=$NF} END {print threads}')
+
+# Get # of COREs per CPU
+ncore_cpu=$(lscpu | awk '/^Core/ {threads=$NF} END {print threads}')
+
+if [ $((nthread_core * ncore_cpu)) > 1 ] ; then
+    nthread_core_use=$((nthread_core * ncore_cpu / 2))
+else
+    nthread_core_use=nthread_core
+fi
+
+# Get # of CPUs (aka sockets)
+#ncpu=$(cat /proc/cpuinfo | egrep "core id|physical id" | tr -d "\n" | sed s/physical/\\nphysical/g | grep -v ^$ | sort | uniq | wc -l)
+ncpu=$(lscpu | awk '/^Socket.s.:/ {sockets=$NF} END {print sockets}')
+echo
+echo Summary of compute:
+echo $nthread_core threads per core
+echo $ncore_cpu cores per cpu
+echo $nthread_core_use threads pre core will be activated
+echo $ncpu cpus
+echo $((nthread_core_use * ncpu)) logical cores will be used in processing
+echo
 
 gdal_opts="-co TILED=YES -co COMPRESS=LZW -co BIGTIFF=YES"
 gdal_opts+=" -co BLOCKXSIZE=256 -co BLOCKYSIZE=256"
@@ -273,7 +294,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
 
     # Processing with 'parallel_stereo' needs these
     par_opts="--job-size-w $tile_size --job-size-h $tile_size"
-    par_opts+=" --threads-singleprocess $ncpu"
+    par_opts+=" --threads-singleprocess $nthread_core_use "
     par_opts+=" --processes $ncpu"
     par_opts+=" --threads-multiprocess 1"
     if [ "$NODES" = true  ] ; then
@@ -299,7 +320,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         sgm_opts+=" --median-filter-size 3"
         sgm_opts+=" --texture-smooth-size 7"
         sgm_opts+=" --texture-smooth-scale 0"
-        sgm_opts+=" --threads 14"
+        sgm_opts+=" --threads $nthread_core_use"
         sgm_opts+=" $stereo_opts"
 
         echo; date; echo;
