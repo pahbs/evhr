@@ -28,7 +28,7 @@ function gettag() {
 }
 
 #Hardcoded Args (SGM testing)
-tile_size=4000 #1500 #2048 #1024 #20480
+tile_size=3000 #1500 #2048 #1024 #20480
 
 # Required Args (optional args like ${N})
 pairname=$1
@@ -292,7 +292,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         else
             sgm_opts+=" --cost-mode 3"
         fi
-        sgm_opts+=" --corr-memory-limit-mb 4000"    #4500 * ncpu < total VM RAM
+        sgm_opts+=" --corr-memory-limit-mb 4000"    #4000 * ncpu < total VM RAM (borg nodes: 28 cpu; 132 GB RAM
         sgm_opts+=" --corr-tile-size $tile_size"
         sgm_opts+=" --xcorr-threshold -1"
         sgm_opts+=" --subpixel-mode 0"
@@ -303,7 +303,6 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         sgm_opts+=" $stereo_opts"
 
         echo; date; echo;
-        #eval time stereo -e $e $sgm_opts $stereo_args
         cmd="parallel_stereo -e $e $par_opts $sgm_opts $stereo_args"
         echo $cmd
         eval $cmd
@@ -382,8 +381,7 @@ else
           fi
         else
             echo "Finished: ${out}-DEM_${dem_res}m.tif"
-        fi
-        
+        fi      
     done
     
     if [[ ! -z $cmd_list ]] ; then
@@ -410,8 +408,8 @@ else
     map_opts+=" -t rpc"
     map_opts+=" --num-processes $ncpu"
 
-    #If both in_left and in_right exist, then catid mosaics are complete, and in_left can be ortho'd
-    # else no mosiacs done, in_left is an xml used for proj and native_res; need indiv scenes indiv ortho'd then dem_mosaic
+    #If both in_left & in_right exist, then catid mosaics are complete, and in_left can be ortho'd
+    # else no mosiacs done, in_left is an xml used for proj & native_res; need indiv scenes indiv ortho'd then dem_mosaic
     if [ ! -e ${out_ortho} ] ; then
         if [ -e ${mos4ortho_img} ] ; then
             echo; echo "Orthoimage Generation @ native resolution..."; echo
