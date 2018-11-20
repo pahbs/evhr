@@ -28,7 +28,7 @@ function gettag() {
 }
 
 #Hardcoded Args (SGM testing)
-tile_size=5000 #1500 #2048 #1024 #20480
+tile_size=4000 #1500 #2048 #1024 #20480
 
 # Required Args (optional args like ${N})
 pairname=$1
@@ -92,8 +92,8 @@ ncpu=$(lscpu | awk '/^Socket.s.:/ {sockets=$NF} END {print sockets}')
 
 nlogical_cores=$((nthread_core * ncore_cpu * ncpu ))
 
-# Tough to run SGM on big tiles (~5000) while using all logical cores (mem-related fails)
-nlogical_cores_use=$((nlogical_cores - 8))
+# Tough to run SGM on big tiles (~4000) while using all logical cores (mem-related fails)
+nlogical_cores_use=$((nlogical_cores - 12))
 
 echo
 echo Summary of compute:
@@ -301,6 +301,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         par_opts+=" --nodes-list=$nodeslist"
     fi
     echo; echo "Point-Cloud Generation (stereogrammetry)..." ; echo
+    echo; date; echo;
     if [ "$RUN_PSTEREO" = true ] && [ "$SGM" = true ] ; then
         echo ; echo "Correllation with Semi-Global Matching (SGM) - run on ADAPT or DISCOVER." ; echo
         if [ ! -z "$sa" ]; then
@@ -313,7 +314,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         else
             sgm_opts+=" --cost-mode 3"
         fi
-        sgm_opts+=" --corr-memory-limit-mb 6000"    #4000 * ncpu < total VM RAM (borg nodes: 28 cpu; 132 GB RAM
+        sgm_opts+=" --corr-memory-limit-mb 8000"    #4000 * ncpu < total VM RAM (borg nodes: 28 cpu; 132 GB RAM
         sgm_opts+=" --corr-tile-size $tile_size"
         sgm_opts+=" --xcorr-threshold -1"
         sgm_opts+=" --subpixel-mode 0"
@@ -323,10 +324,9 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         sgm_opts+=" --threads $nlogical_cores_use"
         sgm_opts+=" $stereo_opts"
 
-        echo; date; echo;
-        cmd="parallel_stereo -e $e $par_opts $sgm_opts $stereo_args"
-        echo $cmd
-        eval $cmd
+        cmd_stereo="parallel_stereo -e $e $par_opts $sgm_opts $stereo_args"
+        echo; echo $cmd_stereo ; echo
+        eval time $cmd_stereo
     else
         echo; echo "Correllation (naive) with Normalized Cross Correlation (ncc)  - run on ADAPT or DISCOVER." ; echo
         stereo_opts+=" --subpixel-mode 2" #affine adaptive window, Bayes EM weighting
@@ -334,16 +334,24 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         stereo_opts+=" --cost-mode 2"     # norm cross corr
 
         if [ "$RUN_PSTEREO" = true ] ; then
-            echo; echo $stereo_args ; echo
-            echo; echo "parallel_stereo -e $e $par_opts $stereo_opts $stereo_args"; echo
-            eval time parallel_stereo -e $e $par_opts $stereo_opts $stereo_args
+            cmd_stereo="parallel_stereo -e $e $par_opts $stereo_opts $stereo_args"
+            echo; echo $cmd_stereo ; echo
+            eval time $cmd_stereo
+
             echo; echo "Removing intermediate logs..."
             rm ${out}-log-stereo_parse*.txt
         else
-            echo; echo "stereo $stereo_opts $stereo_args"; echo
-            eval time stereo -e $e $stereo_opts $stereo_args
+            cmd_stereo="stereo -e $e $stereo_opts $stereo_args"
+            echo; echo $cmd_stereo ; echo
+            eval time $cmd_stereo
         fi
     fi
+fi
+if [ ! -e "${out}-PC.tif" ] ; then
+    echo; echo "Stereogrammetry failed. Try again from -e 4."
+    cmd=$(echo $cmd_stereo | sed 's/-e 0/-e 4/g')
+    echo; echo $cmd ; echo
+    eval time $cmd
 fi
 if [ ! -e "${out}-PC.tif" ] ; then
     echo; echo "Stereogrammetry failed. Exiting."
