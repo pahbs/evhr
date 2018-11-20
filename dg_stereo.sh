@@ -28,7 +28,7 @@ function gettag() {
 }
 
 #Hardcoded Args (SGM testing)
-tile_size=3000 #1500 #2048 #1024 #20480
+tile_size=5000 #1500 #2048 #1024 #20480
 
 # Required Args (optional args like ${N})
 pairname=$1
@@ -93,7 +93,7 @@ ncpu=$(lscpu | awk '/^Socket.s.:/ {sockets=$NF} END {print sockets}')
 nlogical_cores=$((nthread_core * ncore_cpu * ncpu ))
 
 # Tough to run SGM on big tiles (~5000) while using all logical cores (mem-related fails)
-nlogical_cores_use=$((nlogical_cores - 5))
+nlogical_cores_use=$((nlogical_cores - 8))
 
 echo
 echo Summary of compute:
@@ -346,21 +346,10 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     fi
 fi
 if [ ! -e "${out}-PC.tif" ] ; then
-    echo; echo "Stereogrammetry unsuccessful. Exiting."
+    echo; echo "Stereogrammetry failed. Exiting."
     exit 1
 else
     echo; echo "Point-Cloud file (from stereogrammetry) exists." ; echo
-    if gdalinfo ${out}-PC.tif | grep -q VRT ; then
-        echo; echo "Convert PC.tif from virtual to real"; echo
-        eval time gdal_translate $gdal_opts ${out}-PC.tif ${out}-PC_full.tif
-        mv ${out}-PC_full.tif ${out}-PC.tif
-        if [ ! -e ${out}-PC.tif ] ; then echo "gdal_translate failed to create full PC. Exiting." ; exit 1 ; fi
-    fi
-    if [ "$RUN_PSTEREO" = true ] ; then
-        echo; echo "Removing intermediate parallel_stereo dirs..."
-        echo "${out}-"*/
-        rm -rf ${out}-*/
-    fi
 
     stats_res=24
     mid_res=4
@@ -416,13 +405,32 @@ else
         eval parallel --progress -verbose -j $njobs ::: $cmd_list
     fi
     num_dems=$(ls ${out}-DEM_*m.tif | wc -l)
-    if [ "$num_dems" -lt "1" ] ; then echo "point2dem failed to create at least 1 dem. Exiting." ; exit 1 ; fi
+
+    if [ "$num_dems" -lt "1" ] ; then 
+        echo "Failed to create at least 1 DEM (point2dem). Exiting."
+        exit 1
+    else
+        if gdalinfo ${out}-PC.tif | grep -q VRT ; then
+            echo; echo "Convert PC.tif from virtual to real"; echo
+            eval time gdal_translate $gdal_opts ${out}-PC.tif ${out}-PC_full.tif
+            mv ${out}-PC_full.tif ${out}-PC.tif
+            if [ ! -e ${out}-PC.tif ] ; then
+                 echo "Failed to convert to real PC.tif (gdal_translate). Exiting."
+                 exit 1
+            fi
+            if [ "$RUN_PSTEREO" = true ] ; then
+                echo; echo "Removing intermediate parallel_stereo dirs..."
+                echo "${out}-"*/
+                rm -rf ${out}-*/
+            fi
+        fi
+    fi
 
     echo; echo "Shaded Relief Generation..." ; echo
     hs_dem.sh ${out}-DEM_${fine_res}m.tif ${out}-DEM_${mid_res}m.tif ${out}-DEM_${stats_res}m.tif
 
     num_hs=$(ls ${out}-DEM_*hs_az*.tif | wc -l)
-    if [ "$num_hs" -lt "1" ] ; then echo "hs_dem.sh failed to create at least 1 shaded-relief image. Exiting." ; exit 1 ; fi
+    if [ "$num_hs" -lt "1" ] ; then echo "Failed to create at least 1 shaded-relief image (hs_dem.sh). Exiting." ; exit 1 ; fi
     ortho_opts="--nodata-value 0"
 
     map_opts="$ortho_opts"
