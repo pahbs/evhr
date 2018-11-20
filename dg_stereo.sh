@@ -100,7 +100,7 @@ echo Summary of compute:
 echo $nthread_core threads per core
 echo $ncore_cpu cores per cpu
 echo $ncpu cpus
-echo $logical_cores logical cores
+echo $nlogical_cores logical cores
 echo $nlogical_cores_use logical cores will be used in stereo processing
 echo
 
@@ -313,7 +313,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         else
             sgm_opts+=" --cost-mode 3"
         fi
-        sgm_opts+=" --corr-memory-limit-mb 4000"    #4000 * ncpu < total VM RAM (borg nodes: 28 cpu; 132 GB RAM
+        sgm_opts+=" --corr-memory-limit-mb 6000"    #4000 * ncpu < total VM RAM (borg nodes: 28 cpu; 132 GB RAM
         sgm_opts+=" --corr-tile-size $tile_size"
         sgm_opts+=" --xcorr-threshold -1"
         sgm_opts+=" --subpixel-mode 0"
