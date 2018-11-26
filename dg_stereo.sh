@@ -314,7 +314,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         else
             sgm_opts+=" --cost-mode 3"
         fi
-        sgm_opts+=" --corr-memory-limit-mb 8000"    #4000 * ncpu < total VM RAM (borg nodes: 28 cpu; 132 GB RAM
+        #sgm_opts+=" --corr-memory-limit-mb 8000"    #this * ncpu < total VM RAM (borg nodes: 28 cpu; 132 GB RAM
         sgm_opts+=" --corr-tile-size $tile_size"
         sgm_opts+=" --xcorr-threshold -1"
         sgm_opts+=" --subpixel-mode 0"
