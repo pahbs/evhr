@@ -347,8 +347,10 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         fi
     fi
 fi
-if [ ! -e "${out}-PC.tif" ] ; then
-    echo; echo "Stereogrammetry failed. Try again from -e 4."
+if [ -e "${out}-PC.tif" ] && gdalinfo ${out}-PC.tif | grep -q "Pixel Size" ; then
+    echo; echo "Stereogrammetry produced a valid PC file." ; echo
+else
+    echo; echo "Stereogrammetry failed to produce a valid PC file. Try again from -e 4."
     cmd=$(echo $cmd_stereo | sed 's/-e 0/-e 4/g')
     echo; echo $cmd ; echo
     eval time $cmd
@@ -357,7 +359,7 @@ if [ ! -e "${out}-PC.tif" ] ; then
     echo; echo "Stereogrammetry failed. Exiting."
     exit 1
 else
-    echo; echo "Point-Cloud file (from stereogrammetry) exists." ; echo
+    echo; echo "Point-cloud file (from stereogrammetry) can be used to produce DSMs." ; echo
 
     stats_res=24
     mid_res=4
