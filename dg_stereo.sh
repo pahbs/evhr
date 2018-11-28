@@ -93,7 +93,7 @@ ncpu=$(lscpu | awk '/^Socket.s.:/ {sockets=$NF} END {print sockets}')
 nlogical_cores=$((nthread_core * ncore_cpu * ncpu ))
 
 # Tough to run SGM on big tiles (~4000) while using all logical cores (mem-related fails)
-nlogical_cores_use=$((nlogical_cores - 12))
+nlogical_cores_use=$((nlogical_cores / 2))
 
 echo
 echo Summary of compute:
@@ -322,6 +322,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         sgm_opts+=" --texture-smooth-size 7"
         sgm_opts+=" --texture-smooth-scale 0"
         sgm_opts+=" --threads $nlogical_cores_use"
+        sgm_opts+=" --verbose"
         sgm_opts+=" $stereo_opts"
 
         cmd_stereo="parallel_stereo -e $e $par_opts $sgm_opts $stereo_args"
