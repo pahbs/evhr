@@ -347,16 +347,17 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         fi
     fi
 fi
-if [ -e "${out}-PC.tif" ] && gdalinfo ${out}-PC.tif | grep -q "Pixel Size" ; then
-    echo; echo "Stereogrammetry produced a valid PC file." ; echo
-else
-    echo; echo "Stereogrammetry failed to produce a valid PC file. Try again from -e 4."
-    cmd=$(echo $cmd_stereo | sed 's/-e 0/-e 4/g')
-    echo; echo $cmd ; echo
-    eval time $cmd
+
+
+if [ -e "${out}-PC.tif" ] && [ $(gdalinfo "${out}-PC.tif" | awk '/Virtual Raster/ {f=1;exit}END{print f?"true":"false"}') = "false" ] ; then
+    echo; echo "Stereogrammetry failed to produce a valid virtual PC file. Try again from -e 4."
+    cmd_stereo=$(echo $cmd_stereo | sed 's/-e 0/-e 4/g')
+    echo; echo $cmd_stereo; echo
+    eval time $cmd_stereo
 fi
-if [ ! -e "${out}-PC.tif" ] ; then
-    echo; echo "Stereogrammetry failed. Exiting."
+
+if [ ! -e "${out}-PC.tif" ] || [ $(gdalinfo "${out}-PC.tif" | awk '/Virtual Raster/ {f=1;exit}END{print f?"true":"false"}') = "false" ] ; then
+    echo; echo "Stereogrammetry failed to produce either a TIF or a valid VRT. Exiting."
     exit 1
 else
     echo; echo "Point-cloud file (from stereogrammetry) can be used to produce DSMs." ; echo
