@@ -26,9 +26,16 @@ function gettag() {
     tag=$2
     echo $(grep "$tag" $xml | awk -F'[<>]' '{print $3}')
 }
+host=`/bin/hostname -s`
 
 #Hardcoded Args (SGM testing)
-tile_size=4000 #1500 #2048 #1024 #20480
+tile_size=4000
+if [[ "$host" == *"crane"* ]] ; then
+    tile_size=4000
+fi
+if [[ "$host" == *"ecotone"* ]] || [[ "$host" == *"himat"* ]] ; then
+    tile_size=2000
+fi
 
 # Required Args (optional args like ${N})
 pairname=$1
@@ -93,7 +100,10 @@ ncpu=$(lscpu | awk '/^Socket.s.:/ {sockets=$NF} END {print sockets}')
 nlogical_cores=$((nthread_core * ncore_cpu * ncpu ))
 
 # Tough to run SGM on big tiles (~4000) while using all logical cores (mem-related fails)
-nlogical_cores_use=$((nlogical_cores / 2))
+nlogical_cores_use=$((nlogical_cores - 1))
+if [[ "$host" == *"ecotone"* ]] || [[ "$host" == *"himat"* ]] ; then
+    nlogical_cores_use=$((nlogical_cores - 4))
+fi
 
 echo
 echo Summary of compute:
@@ -253,8 +263,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
             ln -sv ${in_img%.tif}.xml ${in_img%.tif}${outext}.xml
             map_arg="--t_projwin $map_extent $rpcdem ${in_img} ${in_img%.tif}${outext}.xml ${in_img%.tif}${outext}.tif"
             if [ ! -e ${in_img%.tif}${outext}.tif ]; then
-                echo; date; echo;
-                echo mapproject $map_opts $map_arg
+                echo date; echo mapproject $map_opts $map_arg
                 eval time mapproject $map_opts $map_arg
             fi
         done
@@ -301,12 +310,13 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         par_opts+=" --nodes-list=$nodeslist"
     fi
     echo; echo "Point-Cloud Generation (stereogrammetry)..." ; echo
-    echo; date; echo;
+
     if [ "$RUN_PSTEREO" = true ] && [ "$SGM" = true ] ; then
-        echo ; echo "Correllation with Semi-Global Matching (SGM) - run on ADAPT or DISCOVER." ; echo
         if [ ! -z "$sa" ]; then
+            echo ; echo "Correllation with stereo-algorithm = ${sa}"; echo
             sgm_opts+=" --stereo-algorithm $sa"
         else
+            echo ; echo "Correllation with Semi-Global Matching (SGM)" ; echo
             sgm_opts+=" --stereo-algorithm 1"
         fi
         if [ ! -z "$cm" ]; then
@@ -320,48 +330,47 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         sgm_opts+=" --subpixel-mode 0"
         sgm_opts+=" --median-filter-size 3"
         sgm_opts+=" --texture-smooth-size 7"
-        sgm_opts+=" --texture-smooth-scale 0"
+        sgm_opts+=" --texture-smooth-scale 0.13"
         sgm_opts+=" --threads $nlogical_cores_use"
-        sgm_opts+=" --verbose"
+        #sgm_opts+=" --verbose"
         sgm_opts+=" $stereo_opts"
 
         cmd_stereo="parallel_stereo -e $e $par_opts $sgm_opts $stereo_args"
-        echo; echo $cmd_stereo ; echo
+        date ; echo $cmd_stereo ; echo
         eval time $cmd_stereo
     else
-        echo; echo "Correllation (naive) with Normalized Cross Correlation (ncc)  - run on ADAPT or DISCOVER." ; echo
+        echo; echo "Correllation (naive) with Normalized Cross Correlation (ncc)" ; echo
         stereo_opts+=" --subpixel-mode 2" #affine adaptive window, Bayes EM weighting
         stereo_opts+=" --filter-mode 1"   #discard pixels for which % of neighbor disps are outliers (inliers: w/in rm-threshold=3 of current disp; thresh % must > rm-min-matches=60%)
         stereo_opts+=" --cost-mode 2"     # norm cross corr
 
         if [ "$RUN_PSTEREO" = true ] ; then
             cmd_stereo="parallel_stereo -e $e $par_opts $stereo_opts $stereo_args"
-            echo; echo $cmd_stereo ; echo
+            date ; echo $cmd_stereo ; echo
             eval time $cmd_stereo
 
             echo; echo "Removing intermediate logs..."
             rm ${out}-log-stereo_parse*.txt
         else
             cmd_stereo="stereo -e $e $stereo_opts $stereo_args"
-            echo; echo $cmd_stereo ; echo
+            echo date ; echo $cmd_stereo ; echo
             eval time $cmd_stereo
         fi
     fi
 fi
 
-
 if [ -e "${out}-PC.tif" ] && [ $(gdalinfo "${out}-PC.tif" | awk '/Virtual Raster/ {f=1;exit}END{print f?"true":"false"}') = "false" ] ; then
     echo; echo "Stereogrammetry failed to produce a valid virtual PC file. Try again from -e 4."
     cmd_stereo=$(echo $cmd_stereo | sed 's/-e 0/-e 4/g')
-    echo; echo $cmd_stereo; echo
+    date ; echo $cmd_stereo ; echo
     eval time $cmd_stereo
 fi
 
 if [ ! -e "${out}-PC.tif" ] || [ $(gdalinfo "${out}-PC.tif" | awk '/Virtual Raster/ {f=1;exit}END{print f?"true":"false"}') = "false" ] ; then
-    echo; echo "Stereogrammetry failed to produce either a TIF or a valid VRT. Exiting."
+    echo; echo "Stereogrammetry failed to produce either a TIF or a valid VRT. Exiting."; echo date; echo
     exit 1
 else
-    echo; echo "Point-cloud file (from stereogrammetry) can be used to produce DSMs." ; echo
+    echo; echo "Point-cloud file (from stereogrammetry) can be used to produce DSMs." ; echo date; echo
 
     stats_res=24
     mid_res=4
@@ -371,7 +380,7 @@ else
     mid_dem=${out}-DEM_${mid_res}m.tif
     fine_dem=${out}-DEM_${fine_res}m.tif
 
-    echo; echo "DEM Generation..."; echo
+    date ; echo "DEM Generation..."; echo
     cmd_list=''
     dem_ndv=-99
 
@@ -432,7 +441,6 @@ else
             fi
             if [ "$RUN_PSTEREO" = true ] ; then
                 echo; echo "Removing intermediate parallel_stereo dirs..."
-                echo "${out}-"*/
                 rm -rf ${out}-*/
             fi
         fi
