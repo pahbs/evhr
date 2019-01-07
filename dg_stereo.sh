@@ -29,7 +29,7 @@ function gettag() {
 host=`/bin/hostname -s`
 
 #Hardcoded Args (SGM testing)
-tile_size=4000
+tile_size=5000
 if [[ "$host" == *"crane"* ]] ; then
     tile_size=4000
 fi
@@ -100,7 +100,10 @@ ncpu=$(lscpu | awk '/^Socket.s.:/ {sockets=$NF} END {print sockets}')
 nlogical_cores=$((nthread_core * ncore_cpu * ncpu ))
 
 # Tough to run SGM on big tiles (~4000) while using all logical cores (mem-related fails)
-nlogical_cores_use=$((nlogical_cores - 1))
+nlogical_cores_use=$((nlogical_cores - 8))
+if [[ "$host" == *"crane"* ]] ; then
+    nlogical_cores_use=$((nlogical_cores_use - 1))
+fi
 if [[ "$host" == *"ecotone"* ]] || [[ "$host" == *"himat"* ]] ; then
     nlogical_cores_use=$((nlogical_cores - 4))
 fi
@@ -263,7 +266,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
             ln -sv ${in_img%.tif}.xml ${in_img%.tif}${outext}.xml
             map_arg="--t_projwin $map_extent $rpcdem ${in_img} ${in_img%.tif}${outext}.xml ${in_img%.tif}${outext}.tif"
             if [ ! -e ${in_img%.tif}${outext}.tif ]; then
-                echo date; echo mapproject $map_opts $map_arg
+                date; echo mapproject $map_opts $map_arg
                 eval time mapproject $map_opts $map_arg
             fi
         done
@@ -353,7 +356,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
             rm ${out}-log-stereo_parse*.txt
         else
             cmd_stereo="stereo -e $e $stereo_opts $stereo_args"
-            echo date ; echo $cmd_stereo ; echo
+            date ; echo $cmd_stereo ; echo
             eval time $cmd_stereo
         fi
     fi
@@ -367,10 +370,10 @@ if [ -e "${out}-PC.tif" ] && [ $(gdalinfo "${out}-PC.tif" | awk '/Virtual Raster
 fi
 
 if [ ! -e "${out}-PC.tif" ] || [ $(gdalinfo "${out}-PC.tif" | awk '/Virtual Raster/ {f=1;exit}END{print f?"true":"false"}') = "false" ] ; then
-    echo; echo "Stereogrammetry failed to produce either a TIF or a valid VRT. Exiting."; echo date; echo
+    echo; echo "Stereogrammetry failed to produce either a TIF or a valid VRT. Exiting."; date; echo
     exit 1
 else
-    echo; echo "Point-cloud file (from stereogrammetry) can be used to produce DSMs." ; echo date; echo
+    echo; echo "Point-cloud file (from stereogrammetry) can be used to produce DSMs." ; date; echo
 
     stats_res=24
     mid_res=4
