@@ -29,9 +29,9 @@ function gettag() {
 host=`/bin/hostname -s`
 
 #Hardcoded Args (SGM testing)
-tile_size=5000
+tile_size=3000
 if [[ "$host" == *"crane"* ]] ; then
-    tile_size=4000
+    tile_size=5000
 fi
 if [[ "$host" == *"ecotone"* ]] || [[ "$host" == *"himat"* ]] ; then
     tile_size=2000
@@ -102,7 +102,7 @@ nlogical_cores=$((nthread_core * ncore_cpu * ncpu ))
 # Tough to run SGM on big tiles (~4000) while using all logical cores (mem-related fails)
 nlogical_cores_use=$((nlogical_cores - 8))
 if [[ "$host" == *"crane"* ]] ; then
-    nlogical_cores_use=$((nlogical_cores_use - 1))
+    nlogical_cores_use=$((nlogical_cores - 1))
 fi
 if [[ "$host" == *"ecotone"* ]] || [[ "$host" == *"himat"* ]] ; then
     nlogical_cores_use=$((nlogical_cores - 4))
