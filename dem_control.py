@@ -27,8 +27,6 @@ matplotlib.use('Agg')
 import matplotlib.pyplot, matplotlib.mlab, math
 import scipy.stats
 
-from demcoreg import dem_mask
-
 #TOA Terrain Ruggedness masked
 def get_tri_mask(dem_ds, min_tri):
     print("Applying TRI filter (masking smooth values < %0.4f)" % min_tri)
@@ -70,8 +68,6 @@ def get_toa_mask(toa_ds, min_toa):
 
 def get_toa_fn(dem_fn):
     toa_fn = None
-    #Original approach, assumes DEM file is in *00/dem_*/*DEM_32m.tif
-    #dem_dir = os.path.split(os.path.split(os.path.abspath(dem_fn))[0])[0]
     dem_dir_list = os.path.split(os.path.abspath(dem_fn))[0].split(os.sep)
     import re
     #Get index of the top level pair directory containing toa (WV02_20140514_1030010031114100_1030010030896000)
@@ -83,6 +79,7 @@ def get_toa_fn(dem_fn):
         #Find toa.tif in top-level dir
         toa_fn = glob.glob(os.path.join(dem_dir, '*toa.tif'))
         if not toa_fn:
+            # My own version, with an edit to recognize ortho.tif, then use the 4m version of the ortho
             cmd = ['toa_calc.sh', dem_dir]
             print(cmd)
             subprocess.call(cmd)
@@ -93,17 +90,13 @@ def get_toa_fn(dem_fn):
 def get_min_gaus(ras_fn, sample_step=50, ncomp=3):
     # Get ma
     masked_array = iolib.fn_getma(ras_fn)
-
     # Sample ma
     masked_array= sample_ma(masked_array, sample_step)
-
     # Do gaussian fitting
     means, vars, weights = fit_gaus(masked_array, ncomp)
 
     sample_step_str = "%03d" % (sample_step)
-
     histo = matplotlib.pyplot.hist(masked_array.compressed(), 300, normed=True, color='gray', alpha = 0.5)
-    
     #Write histogram
     fig_name = ras_fn.split('/')[-1].strip('.tif') + "_" + str(ncomp) + "_" + sample_step_str + '.png'
     i = 0
@@ -114,7 +107,6 @@ def get_min_gaus(ras_fn, sample_step=50, ncomp=3):
         i += 1
         matplotlib.pyplot.plot(histo[1], w*scipy.stats.norm.pdf( histo[1], m, np.sqrt(c) ), linewidth=3)
         #matplotlib.pyplot.axis([min(masked_array.compressed()),max(masked_array.compressed()),0,1])
-
         gauss_num = 'Gaussian peak #%s' %(i)
         print '\t' + gauss_num + ' mean: ', m , ' std dev:',np.sqrt(c)
         #print '\tGaussian peak #%s : mean: %04d , std dev: %04d' %(i, m, np.sqrt(c))
@@ -356,8 +348,6 @@ def main():
         print("Dilating control mask with %i iterations" % niter)
         from scipy import ndimage
         controlmask = ~(ndimage.morphology.binary_dilation(~controlmask, iterations=niter))
-    
-    #Check that we have enough pixels, good distribution
 
     #Apply mask to original DEM - use these surfaces for co-registration
     newdem = np.ma.array(dem, mask=controlmask) 
