@@ -8,6 +8,7 @@
 import os, sys, osgeo, time, glob, platform, subprocess as subp
 from timeit import default_timer as timer
 from time import gmtime, strftime
+from shutil import copyfile
 
 def find_elapsed_time(start, end): # take two timer() objects and find elapsed time between them, in minutes
     elapsed_min = (end-start)/60
@@ -102,12 +103,12 @@ def run_asp(
     test_p = 'false'
     adapt_p = 'false'
     map_p = 'false'
-    runStereo_p = 'true' # temp for test SGM batch
+    runStereo_p = 'true' # temp for test SGM batch 1/10/2019 pstereo = true from now
     batch_p = 'batch{}'.format(batchID)
     rpc_p = ''
     nodes_p = 'false'
     nodesList_p = ''
-    sgm_p = 'true'  # temp for test SGM batch
+    sgm_p = 'true'  # temp for test SGM batch 1/10/2019 SGM = true from now
 
     # print params to log
     print "Calling {} to perform stereo...".format(stereoCode)
@@ -166,6 +167,10 @@ def run_asp(
     else: print "\n Final ovr file ({}) does not exist. Something went wrong, please check the log.".format(finalFile)
     end_main = timer()
     total_time = find_elapsed_time(start_main, end_main)
+
+    # copy the python log to pairname dir
+    copyfile(lfile, lfile.replace(logdir, imageDir))
+
 
     # add some info to the run_times csv for NCCS
     # then print batchID, pairname, total_time (minutes and hours) to csv
