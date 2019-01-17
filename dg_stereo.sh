@@ -13,7 +13,6 @@
 #   ntfmos.sh               reads in indiv NTFs & XMLs from the query, runs wv_correct and then dg_mosaic
 #   proj_select.py          get the best prj used to mapproject input
 #   utm_proj_select.py		force get UTM prj for DEM and ortho; edit to script from pygeotools to force select UTM zone (instead of best prj); 
-#   ---- removed ----> color_hs.py             creates color-shaded relief and shaded relief versions of the DEMs
 #   hs_dem.sh				creates shaded-relief versions of the DEMs
 #   dg_stereo_int.py        calcs the intersection between to images
 #   warptool.py             performs warping and resampling of mutiple input
@@ -31,7 +30,7 @@ host=`/bin/hostname -s`
 #Hardcoded Args (SGM testing)
 tile_size=3000
 if [[ "$host" == *"crane"* ]] ; then
-    tile_size=5000
+    tile_size=7000
 fi
 if [[ "$host" == *"ecotone"* ]] || [[ "$host" == *"himat"* ]] ; then
     tile_size=2000
@@ -48,7 +47,8 @@ rpcdem=$7         #can be blank var ''
 NODES=$8          #true or false
 nodeslist=$9
 SGM=${10}         #true or false
-# Using 7 for vegetation (very noisy, but resolves more gaps? - probably changing to 11 or 13 due to noise) - use 21+ for mountains/glaciers/other terrain
+
+# Valid when SGM=false: use 7-15 for veg (very noisy, but resolves more gaps?); 21+ for mountains/glaciers/other terrain
 subpix_kern=${11:-21}
 # 1024 probably decent
 erode_max_size=${12:-1024}
@@ -56,7 +56,10 @@ erode_max_size=${12:-1024}
 corr_kern=${13:-21}
 # 300 is default; increase for more difficult areas.
 corr_time=${14:-800}
-outdir_arg=${15} # optional argument to specify the out_root
+
+ # Optional args: needed for wrangle process
+out_root_arg=${15}
+QUERY=${16:-true}
 
 if [ "$ADAPT" = false ]; then
     TEST=false
@@ -64,9 +67,9 @@ fi
 
 if [ "$TEST" = true ]; then
     # Optional Args (stereogrammetry testing)
-    crop=${16}    #"0 190000 40000 40000"
-    #sa=${17}	   #if sgm is true, then use 1 for sgm or 2 for mgm
-    #cm=${18}      #cost mode for stereo
+    crop=${17}    #"0 190000 40000 40000"
+    #sa=${18}	   #if sgm is true, then use 1 for sgm or 2 for mgm
+    #cm=${19}      #cost mode for stereo
 fi
 
 # Set and create out_root
@@ -75,8 +78,8 @@ if [ "$ADAPT" = true ]; then
 else
     out_root=/discover/nobackup/projects/boreal_nga/ASP/${batch_name}
 fi
-if [ ! -z "$outdir_arg" ]; then # if outdir parameter is supplied ($15) regardless of adapt/discover, set out_root to it
-    out_root=$outdir_arg
+if [ ! -z "$out_root_arg" ]; then # if outdir parameter is supplied ($15) regardless of adapt/discover, set out_root to it
+    out_root=$out_root_arg
 fi
 mkdir -p $out_root
 
@@ -165,7 +168,7 @@ out_ortho=${out_root}/${pairname}/${pairname}${ortho_ext}
 if [ ! -e $in_left ] || [ ! -e $in_right  ] ; then
     mkdir -p ${out_root}/${pairname}
     if [ ! -e ${out_ortho} ] ; then
-        if [ "$ADAPT" = true ] ; then
+        if [ "$ADAPT" = true ] && [ "$QUERY" = true ] ; then
             for catid in $left_catid $right_catid ; do
                 cmd=''
                 echo; echo "Querying ngadb, putting the symlinks catid ${catid} in ${out_root}/${pairname}"; echo
@@ -176,7 +179,8 @@ if [ ! -e $in_left ] || [ ! -e $in_right  ] ; then
             # Do the ADAPT db querying in parallel
             eval parallel --delay 2 -verbose -j 2 ::: $cmd_list
         else
-            echo; echo "Workflow not running on ADAPT, querying for input already done."; echo
+            echo; echo "Querying not performed. Input .NTF & .XML files expected in: "
+            echo "${out_root}/${pairname}" ; echo
         fi
     fi
 fi
@@ -397,6 +401,7 @@ else
             
             dem_opts+=" --nodata-value $dem_ndv"
     	    dem_opts+=" --tr $dem_res"
+            # Want to fill some holes in the DEM used for the ortho
             if [ "$dem_res" = "$stats_res" ] ; then
                 dem_opts+=" --dem-hole-fill-len 10"
             fi
