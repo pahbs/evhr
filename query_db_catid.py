@@ -19,6 +19,7 @@ def getparser():
     parser.add_argument('catID', default=None, type=str, help='Input catid')
     parser.add_argument('-prod_code', default='P1BS', type=str, help='Image production code: P1BS or M1BS')
     parser.add_argument('-out_dir', default='/att/pubrepo/DEM/hrsi_dsm', type=str, help='Output pairname dir for symlinks')
+    parser.add_argument('-db_table', default='nga_inventory_canon', type=str, help='Specify the db table name in the database')
     return parser
 
 def main():
@@ -29,6 +30,7 @@ def main():
     catID = args.catID
     prod_code = args.prod_code
     out_dir = args.out_dir
+    db_table = args.db_table
 
     """
     Returns to stdout the ADAPT dir that has the imagery associated with the input catID
@@ -40,13 +42,15 @@ def main():
 
         cur = dbConnect.cursor() # setup the cursor
 
-        selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM nga_inventory_canon WHERE catalog_id = '%s' AND prod_code = '%s'" %(catID, prod_code)
+        selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM %s WHERE catalog_id = '%s' AND prod_code = '%s'" %(db_table, catID, prod_code)
+        
         print( "\n\t Now executing database query on catID '%s' ..."%catID)
         cur.execute(selquery)
         selected=cur.fetchall()
         print( "\n\t Found '%s' scenes for catID '%s' "%(len(selected),catID))
 
         # This will only get the data that match the first prod_id, preventing replicated data from being copied. This should prevent mosaics from failing
+
         prod_id = selected[0][0].split('-')[-1].split('_')[0]
         print( "\t Creating symlinks for data associated with prod_id '%s'" %(prod_id))
 
