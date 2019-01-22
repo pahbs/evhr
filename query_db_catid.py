@@ -40,7 +40,7 @@ def main():
 
         cur = dbConnect.cursor() # setup the cursor
 
-        selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM nga_inventory WHERE catalog_id = '%s' AND prod_code = '%s'" %(catID, prod_code)
+        selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM nga_inventory_canon WHERE catalog_id = '%s' AND prod_code = '%s'" %(catID, prod_code)
         print( "\n\t Now executing database query on catID '%s' ..."%catID)
         cur.execute(selquery)
         selected=cur.fetchall()
