@@ -30,7 +30,7 @@ host=`/bin/hostname -s`
 #Hardcoded Args (SGM testing)
 tile_size=3000
 if [[ "$host" == *"crane"* ]] ; then
-    tile_size=7000
+    tile_size=4000
 fi
 if [[ "$host" == *"ecotone"* ]] || [[ "$host" == *"himat"* ]] ; then
     tile_size=2000
@@ -43,7 +43,7 @@ ADAPT=$3          #true or false
 MAP=$4            #true or false
 RUN_PSTEREO=$5    #true or false
 batch_name=$6
-rpcdem=$7         #can be blank var ''
+rpcdem=${7:-''}   #can be blank var ''
 NODES=$8          #true or false
 nodeslist=$9
 SGM=${10}         #true or false
@@ -59,7 +59,7 @@ corr_time=${14:-800}
 
  # Optional args: needed for wrangle process
 out_root_arg=${15}
-QUERY=${16:-true}
+QUERY=${16:-'true'}
 
 if [ "$ADAPT" = false ]; then
     TEST=false
@@ -102,8 +102,11 @@ ncpu=$(lscpu | awk '/^Socket.s.:/ {sockets=$NF} END {print sockets}')
 
 nlogical_cores=$((nthread_core * ncore_cpu * ncpu ))
 
-# Tough to run SGM on big tiles (~4000) while using all logical cores (mem-related fails)
+# Tough to run SGM on big tiles (~4000?) while using all logical cores (mem-related fails)
 nlogical_cores_use=$((nlogical_cores - 8))
+if [[ "$host" == *"borg"* ]] ; then
+    nlogical_cores_use=$((nlogical_cores - 10))
+fi
 if [[ "$host" == *"crane"* ]] ; then
     nlogical_cores_use=$((nlogical_cores - 1))
 fi
@@ -168,11 +171,13 @@ out_ortho=${out_root}/${pairname}/${pairname}${ortho_ext}
 if [ ! -e $in_left ] || [ ! -e $in_right  ] ; then
     mkdir -p ${out_root}/${pairname}
     if [ ! -e ${out_ortho} ] ; then
-        if [ "$ADAPT" = true ] && [ "$QUERY" = true ] ; then
+        #echo; echo "CHECK"; echo
+        if [[ "$ADAPT" = "true" ]] && [[ "$QUERY" == "true" ]] ; then
             for catid in $left_catid $right_catid ; do
-                cmd=''
-                echo; echo "Querying ngadb, putting the symlinks catid ${catid} in ${out_root}/${pairname}"; echo
+                cmd=''                
                 cmd+="time query_db_catid.py $catid -out_dir ${out_root}/${pairname} ; "
+                echo; echo "Querying ngadb, getting the symlinks to data for catid ${catid}"
+                echo $cmd
                 cmd_list+=\ \'$cmd\'
             done
 
@@ -379,6 +384,20 @@ if [ ! -e "${out}-PC.tif" ] || [ $(gdalinfo "${out}-PC.tif" | awk '/Virtual Rast
 else
     echo; echo "Point-cloud file (from stereogrammetry) can be used to produce DSMs." ; date; echo
 
+    if gdalinfo ${out}-PC.tif | grep -q VRT ; then
+        echo; echo "Convert PC.tif from virtual to real"; echo
+        eval time gdal_translate $gdal_opts ${out}-PC.tif ${out}-PC_full.tif
+        mv ${out}-PC_full.tif ${out}-PC.tif
+        if [ ! -e ${out}-PC.tif ] ; then
+             echo "Failed to convert to real PC.tif. Exiting."
+             exit 1
+        fi
+        if [ "$RUN_PSTEREO" = true ] ; then
+            echo; echo "Removing intermediate parallel_stereo dirs..."
+            rm -rf ${out}-*/
+        fi
+    fi
+
     stats_res=24
     mid_res=4
     fine_res=1
@@ -401,20 +420,19 @@ else
             
             dem_opts+=" --nodata-value $dem_ndv"
     	    dem_opts+=" --tr $dem_res"
-            # Want to fill some holes in the DEM used for the ortho
-            if [ "$dem_res" = "$stats_res" ] ; then
-                dem_opts+=" --dem-hole-fill-len 10"
-            fi
+            
+            ## Want to fill some holes in the DEM used for the ortho (this takes a looong time for strips)
+            #if [ "$dem_res" = "$stats_res" ] ; then dem_opts+=" --dem-hole-fill-len 10" fi
             dem_opts+=" -o ${out}_${dem_res}m"
 
           if [ "$parallel_point2dem" = true ] ; then
               cmd=''
-              cmd+="point2dem $dem_opts ${out}-PC.tif; "
+              cmd+="time point2dem $dem_opts ${out}-PC.tif; "
               cmd+="mv ${out}_${dem_res}m-DEM.tif ${out}-DEM_${dem_res}m.tif; "
               cmd_list+=\ \'$cmd\'
           else
               echo "    Creating DEM at ${dem_res}m ..."
-              cmd="point2dem $dem_opts ${out}-PC.tif"
+              cmd="time point2dem $dem_opts ${out}-PC.tif"
               echo $cmd ; eval $cmd
               mv ${out}_${dem_res}m-DEM.tif ${out}-DEM_${dem_res}m.tif
           fi
@@ -438,20 +456,6 @@ else
     if [ "$num_dems" -lt "1" ] ; then 
         echo "Failed to create at least 1 DEM (point2dem). Exiting."
         exit 1
-    else
-        if gdalinfo ${out}-PC.tif | grep -q VRT ; then
-            echo; echo "Convert PC.tif from virtual to real"; echo
-            eval time gdal_translate $gdal_opts ${out}-PC.tif ${out}-PC_full.tif
-            mv ${out}-PC_full.tif ${out}-PC.tif
-            if [ ! -e ${out}-PC.tif ] ; then
-                 echo "Failed to convert to real PC.tif (gdal_translate). Exiting."
-                 exit 1
-            fi
-            if [ "$RUN_PSTEREO" = true ] ; then
-                echo; echo "Removing intermediate parallel_stereo dirs..."
-                rm -rf ${out}-*/
-            fi
-        fi
     fi
 
     echo; echo "Shaded Relief Generation..." ; echo
@@ -548,7 +552,7 @@ else
         for i in $(ls ${out_root}/${pairname}/*P1BS*ortho.tif); do
             rm -v ${i%.*}*
         done
-        #for i in $(ls ${out_root}/${pairname}/*_corr.*); do
+
         rm -rf $(ls ${out_root}/${pairname}/*.{tif,xml} | grep _corr)
         rm ${out}-log-stereo_parse*.txt
 
