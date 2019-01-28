@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-# Import and function definitions
+#
+# Query nga inventory on ADAPT by catalog ID
+#
 import psycopg2
 import csv
 import argparse
@@ -20,6 +22,8 @@ def getparser():
     parser.add_argument('-prod_code', default='P1BS', type=str, help='Image production code: P1BS or M1BS')
     parser.add_argument('-out_dir', default='/att/pubrepo/DEM/hrsi_dsm', type=str, help='Output pairname dir for symlinks')
     parser.add_argument('-db_table', default='nga_inventory_canon', type=str, help='Specify the db table name in the database')
+    parser.add_argument('--no-symlink', dest='symlink', action='store_false', help='Turn off symlinking into output dir')
+    parser.set_defaults(symlink=True)
     return parser
 
 def main():
@@ -47,33 +51,34 @@ def main():
         print( "\n\t Now executing database query on catID '%s' ..."%catID)
         cur.execute(selquery)
         selected=cur.fetchall()
-        print( "\n\t Found '%s' scenes for catID '%s' "%(len(selected),catID))
+        print( "\n\t Found '%s' scenes for catID '%s' \n"%(len(selected),catID))
 
-        # This will only get the data that match the first prod_id, preventing replicated data from being copied. This should prevent mosaics from failing
+        if args.symlink:
+            # This will only get the data that match the first prod_id, preventing replicated data from being copied. This should prevent mosaics from failing
 
-        prod_id = selected[0][0].split('-')[-1].split('_')[0]
-        print( "\t Creating symlinks for data associated with prod_id '%s'" %(prod_id))
+            prod_id = selected[0][0].split('-')[-1].split('_')[0]
+            print( "\t Creating symlinks for data associated with prod_id '%s'" %(prod_id))
 
-        for i in range(0,len(selected)):
-            #print(selected[i][0])
+            for i in range(0,len(selected)):
+                #print(selected[i][0])
 
-            if prod_id in selected[i][0]:
-                imglist.extend(selected[i][0])
+                if prod_id in selected[i][0]:
+                    imglist.extend(selected[i][0])
 
-                #Copy ntf and xml to out_dir as symlinks
-                filename = os.path.split(selected[i][0])[1]
-                print("\t '%s'"  %(filename))
-                force_symlink( selected[i][0], os.path.join(out_dir, filename) )
-                try:
-                    # shutil.Error: ... are the same file
-    			    # Just copy over the xmls, instead of creating a symlink to them
-                    shutil.copy2(os.path.splitext(selected[i][0])[0]+'.xml', out_dir)
-                except Exception, e:
-                    force_symlink( os.path.splitext(selected[i][0])[0]+'.xml', os.path.join(out_dir, os.path.splitext(filename)[0]+'.xml') )
+                    #Copy ntf and xml to out_dir as symlinks
+                    filename = os.path.split(selected[i][0])[1]
+                    print("\t '%s'"  %(filename))
+                    force_symlink( selected[i][0], os.path.join(out_dir, filename) )
+                    try:
+                        # shutil.Error: ... are the same file
+    			        # Just copy over the xmls, instead of creating a symlink to them
+                        shutil.copy2(os.path.splitext(selected[i][0])[0]+'.xml', out_dir)
+                    except Exception, e:
+                        force_symlink( os.path.splitext(selected[i][0])[0]+'.xml', os.path.join(out_dir, os.path.splitext(filename)[0]+'.xml') )
 
-        #return(imglist)
-        # Print to stdout the dir from first record selected
-        print(os.path.split(selected[0][0])[0])
+            #return(imglist)
+            # Print to stdout the dir from first record selected
+            print(os.path.split(selected[0][0])[0])
 
 if __name__ == "__main__":
     main()

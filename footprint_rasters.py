@@ -269,6 +269,7 @@ def main():
 
                         # Kick out ang_conv (c), ang_bie (b), ang_asm (a), the DSM info header comma-delim'd string (dsm_hdr), and the attributes comm-delim'd string associated with that header
                         c,b,a,dsm_hdr,attributes = dsm_info.main(path_name)
+
                         #print "\t\tHeader: %s" %(dsm_hdr)
                         #print "\t\tAttributes: %s" %(attributes)
 
@@ -323,7 +324,7 @@ def main():
                         os.remove(os.path.join(tmp_dir,f))
 
             except Exception, e:
-                print "\tFailed to footprint: %s" %ras_fn
+                print "\tFailed to footprint (are pairname XML files present?) : %s" %ras_fn
 
     if KML and os.path.isfile(out_shp_fn):
         make_kml(out_shp_fn)

@@ -150,14 +150,14 @@ def fit_gaus(masked_array, ncomp):
     return ms, cs, ws
 
 
-def sample_ma(array, sampleStep):
+def sample_ma(array, sampleStep, min_val=-99):
     """
     Return a sub-sampled masked array for histogram and guassian analysis
         Do histogram of image by regularly sampling a 'pct' of the input image's pixels
         Provides an even sample from across the entire image without having to analyze the entire array
     """
     #Creating data range
-    masked_array = np.ma.masked_less_equal(array,-99)    # mask all values inside this interval
+    masked_array = np.ma.masked_less_equal(array, min_val)         # mask all values inside this interval
     masked_array = np.ma.masked_invalid(masked_array)              # mask all nan and inf values
 
     # Numpy slicing to sample image for histogram generation

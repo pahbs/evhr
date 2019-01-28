@@ -33,11 +33,42 @@ min_pts = 5
 max_slope = 20.
 
 pt_srs = geolib.wgs_srs
-#This is time column in YYYYMMDD
-tcol = 2
-xcol = 4    #lon
-ycol = 3    #lat
-zcol = 7    #elev_ground
+# Python indexing starts with 0
+# This is time column: but we need to convert to YYYYMMDD
+tcol = 3    # this is needed for specifying the min of the col range
+xcol = 5    #lon
+ycol = 4    #lat
+zcol = 8    #elev_ground; also this is the max of the col range
+
+#GLAS GLA14 Record Metadata:
+#https://nsidc.org/data/docs/daac/glas_altimetry/gla14_records.html
+#https://nsidc.org/data/glas/data-dictionary-glah14
+#
+#GLAS shot quality indicators
+#----------------------------
+FRir_val = 15	        #valid equal to this value:     indicates 'cloudless' waveforms
+SatNdx_thresh = 2	    #valid less than this value:	indicates signals that are not 'saturated'
+cld1_mswf_thresh = 15	#valid less than this value:     indicates signals not affected by multiple scattering	
+wflen_thresh = 50		#valid less than this value:    indicates the total length (m) of the waveform
+
+satndxcol = 14 
+cldcol = 17
+FRircol = 18
+wflencol = 25
+
+mincol = tcol
+maxcol = wflencol
+
+tcol = tcol - mincol
+xcol = xcol - mincol
+ycol = ycol - mincol
+zcol = zcol - mincol
+
+satndxcol = satndxcol - mincol
+cldcol = cldcol - mincol
+FRircol = FRircol - mincol
+wflencol = FRircol - mincol
+
 
 #Padding in pixels for sample radius
 #PMedit: we use 4m DEM, sp pad with 8 pixels //Since we're likely dealing with 32-m products here, can just use pad=1
@@ -56,9 +87,11 @@ glas_npz_fn = os.path.join(glas_dir, ext+'.npz')
 if not os.path.exists(glas_npz_fn):
     glas_csv_fn = os.path.splitext(glas_npz_fn)[0]+'.csv'
     print("Loading csv: %s" % glas_csv_fn)
-    glas_pts = np.loadtxt(glas_csv_fn, delimiter=',', skiprows=1, dtype=None)
+    glas_pts = np.loadtxt(glas_csv_fn, delimiter=',', skiprows=1, dtype=None, usecols=range(mincol,maxcol+1))
+
     print("Saving npz: %s" % glas_npz_fn)
     np.savez_compressed(glas_npz_fn, glas_pts)
+
 else:
     #This takes ~5 seconds to load ~9M records with 8 fields
     print("Loading npz: %s" % glas_npz_fn)
@@ -74,16 +107,26 @@ for n,dem_fn in enumerate(dem_fn_list):
     dem_ma = iolib.ds_getma(dem_ds)
     dem_extent_wgs84 = geolib.ds_extent(dem_ds, t_srs=pt_srs)
     xmin, ymin, xmax, ymax = dem_extent_wgs84
-    print("Applying spatial filter") 
-    x = glas_pts[:,xcol]
-    y = glas_pts[:,ycol]
-    idx = ((x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax)) 
+    
+    print("Applying spatial & quality filter") 
+    x      = glas_pts[:,xcol]
+    y      = glas_pts[:,ycol]
+    satndx = glas_pts[:,satndxcol]
+    cld    = glas_pts[:,cldcol]
+    FRir   = glas_pts[:,FRircol]
+    wflen  = glas_pts[:,wflencol]
+
+    idx = ((x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax) & (satndx < SatNdx_thresh) & (cld < cld1_mswf_thresh) & (FRir == FRir_val) & (wflen < wflen_thresh))
+ 
     if idx.nonzero()[0].size == 0:
-        print("No points after spatial filter")
+        print("No points after spatial & quality filtering")
         continue
 
     print("Sampling DEM at masked point locations") 
     glas_pts_fltr = glas_pts[idx]
+
+    #print("Check rows", glas_pts_fltr[0:]) 
+    print("Check row length", glas_pts_fltr.shape[1]) 
 
     print("Writing out %i points after spatial filter" % glas_pts_fltr.shape[0]) 
     out_csv_fn = os.path.splitext(dem_fn)[0]+'_%s.csv' % ext
@@ -95,6 +138,9 @@ for n,dem_fn in enumerate(dem_fn_list):
     # rec_ndx,shotn,date,lat,lon,elev,elev_geoid,elev_ground,rh100,rh50,wflen
     fmt = '%i, %i, %0.2f, %0.6f, %0.6f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f'
 
+    if glas_pts_fltr.shape[1] == 23:    
+        fmt = '%0.2f, %0.6f, %0.6f, %0.2f, %0.2f, %0.2f'
+        fmt += ', %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f'
     if glas_pts_fltr.shape[1] == 7:
         # dt_ordinal, dt_YYYYMMDD, lat, lon, z_WGS84, z_refdem_med_WGS84, z_refdem_nmad
         fmt += ', %0.2f, %0.2f'
@@ -166,7 +212,7 @@ for n,dem_fn in enumerate(dem_fn_list):
 
     dz = z_fltr_mask - samp[samp_idx,0]
 
-    if True:
+    if False:
         print "Creating plot of %i output points" % x_fltr.shape[0]
         fig_kw = {'figsize':(10,7.5)}
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, sharex=True, sharey=True, **fig_kw)

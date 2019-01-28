@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-# formerly get_stereopairs_v3.py
+#
+# Get a list of attributes of a DSM from the corresponding XML file and calculate stereo angles
+#
 # Import and function definitions
 import os, sys, math, osgeo, csv
 from osgeo import ogr, osr, gdal
@@ -202,156 +204,166 @@ def main(imageDir):
     # Name output csv with the pairname and put in output ASP dir
     outCSV = os.path.join(imageDir, "{}.csv".format(pairname))
 
-    # Open a CSV for writing
-    with open(outCSV,'wb') as csvfile:
+    #--TMP NO CSV--#Open a CSV for writing
+    #--TMP NO CSV--with open(outCSV,'wb') as csvfile:
 
-        # Write the header
-        csvfile.write(hdr)
+        #--TMP NO CSV--# Write the header
+        #--TMP NO CSV--#csvfile.write(hdr)
+    #--TMP NO CSV--<INDENT EVERYTHING BELOW>
+    # Get all combos of scenes from each catid strip:
+    for leftXML in cat1list:
+        for rightXML in cat2list:
+            with open(os.path.realpath(os.path.join(imageDir,leftXML)), 'r') as file1, open(os.path.realpath(os.path.join(imageDir,rightXML)),'r') as file2:
+                i = 0
 
-        # Get all combos of scenes from each catid strip:
-        for leftXML in cat1list:
-            for rightXML in cat2list:
-                with open(os.path.realpath(os.path.join(imageDir,leftXML)), 'r') as file1, open(os.path.realpath(os.path.join(imageDir,rightXML)),'r') as file2:
-                    i = 0
+                # Initialize vars - not necessarily stored for each stereopair (i.e., genYear, genMonth, genDOY will be the same for both)
+                outline, catID = ('' for i in range(2))
 
-                    # Initialize vars - not necessarily stored for each stereopair (i.e., genYear, genMonth, genDOY will be the same for both)
-                    outline, catID = ('' for i in range(2))
+                Year,Month,DOY,\
+                tlc_dt,tlcTime,\
+                meanSatEl,meanSatAz,meanSunEl,meanSunAz,meanITVA,meanCTVA,meanONVA,meanGSD,\
+                ephemX,ephemY,ephemZ,\
+                ullat,ullon,lllat,lllon,urlat,urlon,lrlat,lrlon,\
+                maxLat,minLat,maxLon,minLon,centLat,centLon = (0 for i in range(30))
 
-                    Year,Month,DOY,\
-                    tlc_dt,tlcTime,\
-                    meanSatEl,meanSatAz,meanSunEl,meanSunAz,meanITVA,meanCTVA,meanONVA,meanGSD,\
-                    ephemX,ephemY,ephemZ,\
-                    ullat,ullon,lllat,lllon,urlat,urlon,lrlat,lrlon,\
-                    maxLat,minLat,maxLon,minLon,centLat,centLon = (0 for i in range(30))
+                catIDs, genDateCols, genTimeCols, SSGangles, ephemeris, centCoords, cornerCoords = ('' for i in range(7))
 
-                    catIDs, genDateCols, genTimeCols, SSGangles, ephemeris, centCoords, cornerCoords = ('' for i in range(7))
+                # Loop through XML files
+                for file in (file1,file2):
+                    # Keep track of file
+                    i += 1
+                    # Read  XML line by line
+                    for line in file.readlines():
+                        ##print(line)
+                        line2 = line.replace('<','>').split('>')[2]
+                        # Get needed vars initialize above
+                        if 'CATID' in line:
+                            catID = str(line.replace('<','>').split('>')[2])
+                        if 'TLCTIME' in line:
+                            tlc_dt = datetime.strptime(str(line2).split('.')[0], '%Y-%m-%dT%H:%M:%S')
 
-                    # Loop through XML files
-                    for file in (file1,file2):
-                        # Keep track of file
-                        i += 1
-                        # Read  XML line by line
-                        for line in file.readlines():
-                            ##print(line)
-                            line2 = line.replace('<','>').split('>')[2]
-                            # Get needed vars initialize above
-                            if 'CATID' in line:
-                                catID = str(line.replace('<','>').split('>')[2])
-                            if 'TLCTIME' in line:
-                                tlc_dt = datetime.strptime(str(line2).split('.')[0], '%Y-%m-%dT%H:%M:%S')
+                            tlcTime = tlc_dt.strftime("%H:%M:%S")
 
-                                tlcTime = tlc_dt.strftime("%H:%M:%S")
-
-                                Year = tlc_dt.year
-                                Month = tlc_dt.month
-                                DOY = tlc_dt.timetuple().tm_yday
-                            if 'MEANSATEL' in line:
-                                meanSatEl = float(line2)
-                            if 'MEANSATAZ' in line:
-                                meanSatAz = float(line2)
-                            if 'MEANSUNEL' in line:
-                                meanSunEl = float(line2)
-                            if 'MEANSUNAZ' in line:
-                                meanSunAz = float(line2)
-                            if 'MEANINTRACKVIEWANGLE' in line:
-                                meanITVA = float(line2)
-                            if 'MEANCROSSTRACKVIEWANGLE' in line:
-                                meanCTVA = float(line2)
-                            if 'MEANOFFNADIRVIEWANGLE' in line:
-                                meanONVA = float(line2)
-                            if 'MEANPRODUCTGSD' in line:
+                            Year = tlc_dt.year
+                            Month = tlc_dt.month
+                            DOY = tlc_dt.timetuple().tm_yday
+                        if 'MEANSATEL' in line:
+                            meanSatEl = float(line2)
+                        if 'MEANSATAZ' in line:
+                            meanSatAz = float(line2)
+                        if 'MEANSUNEL' in line:
+                            meanSunEl = float(line2)
+                        if 'MEANSUNAZ' in line:
+                            meanSunAz = float(line2)
+                        if 'MEANINTRACKVIEWANGLE' in line:
+                            meanITVA = float(line2)
+                        if 'MEANCROSSTRACKVIEWANGLE' in line:
+                            meanCTVA = float(line2)
+                        if 'MEANOFFNADIRVIEWANGLE' in line:
+                            meanONVA = float(line2)
+                        if 'MEANPRODUCTGSD' in line:
+                            meanGSD = float(line2)
+                        else:
+                            if 'MEANCOLLECTEDGSD' in line:
                                 meanGSD = float(line2)
-                            else:
-                                if 'MEANCOLLECTEDGSD' in line:
-                                    meanGSD = float(line2)
-                            # Get Satellite Ephemeris using the first entry in EPHEMLISTList.
-                            if '<EPHEMLIST>' in line and float(line.replace('<','>').replace('>', ' ').split(' ')[2]) == 1:
-                                ephemX = float(line.replace('<','>').replace('>', ' ').split(' ')[3])
-                                ephemY = float(line.replace('<','>').replace('>', ' ').split(' ')[4])
-                                ephemZ = float(line.replace('<','>').replace('>', ' ').split(' ')[5])
-                            if 'Upper Left' in line:
-                                ullon = float(line.replace('(',')').split((')'))[1].split(',')[0])
-                                ullat = float(line.replace('(',')').split((')'))[1].split(',')[1])
-                            if 'Lower Left' in line:
-                                lllon = float(line.replace('(',')').split((')'))[1].split(',')[0])
-                                lllat = float(line.replace('(',')').split((')'))[1].split(',')[1])
-                            if 'Upper Right' in line:
-                                urlon = float(line.replace('(',')').split((')'))[1].split(',')[0])
-                                urlat = float(line.replace('(',')').split((')'))[1].split(',')[1])
-                            if 'Lower Right' in line:
-                                lrlon = float(line.replace('(',')').split((')'))[1].split(',')[0])
-                                lrlat = float(line.replace('(',')').split((')'))[1].split(',')[1])
-                            if 'ULLON' in line:
-                                ullon = float(line2)
-                            if 'ULLAT' in line:
-                                ullat = float(line2)
-                            if 'URLON' in line:
-                                urlon = float(line2)
-                            if 'URLAT' in line:
-                                urlat = float(line2)
-                            if 'LLLON' in line:
-                                lllon = float(line2)
-                            if 'LLLAT' in line:
-                                lllat = float(line2)
-                            if 'LRLON' in line:
-                                lrlon = float(line2)
-                            if 'LRLAT' in line:
-                                lrlat = float(line2)
+                        # Get Satellite Ephemeris using the first entry in EPHEMLISTList.
+                        if '<EPHEMLIST>' in line and float(line.replace('<','>').replace('>', ' ').split(' ')[2]) == 1:
+                            ephemX = float(line.replace('<','>').replace('>', ' ').split(' ')[3])
+                            ephemY = float(line.replace('<','>').replace('>', ' ').split(' ')[4])
+                            ephemZ = float(line.replace('<','>').replace('>', ' ').split(' ')[5])
+                        if 'Upper Left' in line:
+                            ullon = float(line.replace('(',')').split((')'))[1].split(',')[0])
+                            ullat = float(line.replace('(',')').split((')'))[1].split(',')[1])
+                        if 'Lower Left' in line:
+                            lllon = float(line.replace('(',')').split((')'))[1].split(',')[0])
+                            lllat = float(line.replace('(',')').split((')'))[1].split(',')[1])
+                        if 'Upper Right' in line:
+                            urlon = float(line.replace('(',')').split((')'))[1].split(',')[0])
+                            urlat = float(line.replace('(',')').split((')'))[1].split(',')[1])
+                        if 'Lower Right' in line:
+                            lrlon = float(line.replace('(',')').split((')'))[1].split(',')[0])
+                            lrlat = float(line.replace('(',')').split((')'))[1].split(',')[1])
+                        if 'ULLON' in line:
+                            ullon = float(line2)
+                        if 'ULLAT' in line:
+                            ullat = float(line2)
+                        if 'URLON' in line:
+                            urlon = float(line2)
+                        if 'URLAT' in line:
+                            urlat = float(line2)
+                        if 'LLLON' in line:
+                            lllon = float(line2)
+                        if 'LLLAT' in line:
+                            lllat = float(line2)
+                        if 'LRLON' in line:
+                            lrlon = float(line2)
+                        if 'LRLAT' in line:
+                            lrlat = float(line2)
 
-                            maxLat = max(ullat,urlat,lllat,lrlat)
-                            minLat = min(ullat,urlat,lllat,lrlat)
-                            maxLon = max(ullon,urlon,lllon,lrlon)
-                            minLon = min(ullon,urlon,lllon,lrlon)
-                            centLat = minLat + (maxLat - minLat)/2
-                            centLon = minLon + (maxLon - minLon)/2
+                        maxLat = max(ullat,urlat,lllat,lrlat)
+                        minLat = min(ullat,urlat,lllat,lrlat)
+                        maxLon = max(ullon,urlon,lllon,lrlon)
+                        minLon = min(ullon,urlon,lllon,lrlon)
+                        centLat = minLat + (maxLat - minLat)/2
+                        centLon = minLon + (maxLon - minLon)/2
 
-                        # If only 1 catID, copy these vars for the first file.
-                        if i == 1:
-                            meanSatAz_1 = meanSatAz
-                            meanSatEl_1 = meanSatEl
-                            ephemX_1 = ephemX
-                            ephemY_1 = ephemY
-                            ephemZ_1 = ephemZ
+                    # If only 1 catID, copy these vars for the first file.
+                    if i == 1:
+                        meanSatAz_1 = meanSatAz
+                        meanSatEl_1 = meanSatEl
+                        ephemX_1 = ephemX
+                        ephemY_1 = ephemY
+                        ephemZ_1 = ephemZ
 
-                        # From both images:
-                        # Get scene names instead of catids
-                        Names        = leftXML + ',' + rightXML + ','
+                    # From both images:
+                    # Get scene names instead of catids
+                    Names        = leftXML + ',' + rightXML + ','
 
-                        # gather date (not needed for both, so dont use += )
-                        genDateCols  = str(Year) + ',' + str(Month) + ',' + str(DOY) + ','
-                        genTimeCols += tlcTime + ','
+                    # gather date (not needed for both, so dont use += )
+                    genDateCols  = str(Year) + ',' + str(Month) + ',' + str(DOY) + ','
+                    genTimeCols += tlcTime + ','
 
-                        # gather Sun-Sensor Geometry Angles
-                        SSGangles   +=  str(meanSatEl)  + ',' + str(meanSatAz) + ',' + \
-                                        str(meanSunEl)  + ',' + str(meanSunAz) + ',' + \
-                                        str(meanITVA)  + ',' + str(meanCTVA)  + ',' + str(meanONVA) + ',' + str(meanGSD) + ','
+                    # gather Sun-Sensor Geometry Angles
+                    SSGangles   +=  str(meanSatEl)  + ',' + str(meanSatAz) + ',' + \
+                                    str(meanSunEl)  + ',' + str(meanSunAz) + ',' + \
+                                    str(meanITVA)  + ',' + str(meanCTVA)  + ',' + str(meanONVA) + ',' + str(meanGSD) + ','
 
-                        # gather satellite ephemeris XYZ
-                        ephemeris   +=  str(ephemX)     + ',' + str(ephemY) + ',' + str(ephemZ) + ','
+                    # gather satellite ephemeris XYZ
+                    ephemeris   +=  str(ephemX)     + ',' + str(ephemY) + ',' + str(ephemZ) + ','
 
-                        # gather center coords
-                        centCoords  +=  str(centLon)    + ',' + str(centLat) + ','
+                    # gather center coords
+                    centCoords  +=  str(centLon)    + ',' + str(centLat) + ','
 
-                        # gather corners
-                        cornerCoords+=  str(ullon)      + ',' + str(ullat) + ',' + \
-                                        str(lllon)      + ',' + str(lllat) + ',' + \
-                                        str(urlon)      + ',' + str(urlat) + ',' + \
-                                        str(lrlon)      + ',' + str(lrlat) + ','
+                    # gather corners
+                    cornerCoords+=  str(ullon)      + ',' + str(ullat) + ',' + \
+                                    str(lllon)      + ',' + str(lllat) + ',' + \
+                                    str(urlon)      + ',' + str(urlat) + ',' + \
+                                    str(lrlon)      + ',' + str(lrlat) + ','
 
-                    # Calc stereo angles
-                    stereoAngs = calc_stereoAngles(meanSatEl_1,meanSatAz_1,meanSatEl,meanSatAz,ephemX_1,ephemY_1,ephemZ_1,ephemX,ephemY,ephemZ,centLat,centLon)
+                # Calc stereo angles
+                stereoAngs = calc_stereoAngles(meanSatEl_1,meanSatAz_1,meanSatEl,meanSatAz,ephemX_1,ephemY_1,ephemZ_1,ephemX,ephemY,ephemZ,centLat,centLon)
 
-                    out_attribute_line = Names + genDateCols + genTimeCols + SSGangles + centCoords + ephemeris + cornerCoords + str(stereoAngs[0]) + "," + str(stereoAngs[1]) + "," + str(stereoAngs[2])+'\n'
+                out_attribute_line = Names + genDateCols + genTimeCols + SSGangles + centCoords + ephemeris + cornerCoords + str(stereoAngs[0]) + "," + str(stereoAngs[1]) + "," + str(stereoAngs[2])+'\n'
 
-                    # Write line
-                    csvfile.write(out_attribute_line)
+                try:
+                    with open(outCSV,'wb') as csvfile:
+                        # Write the header
+                        csvfile.write(hdr)
+                        # Write attributes
+                        csvfile.write(out_attribute_line)
+                except Exception, e:
+                    print "\tFailed to write CSV of dsm info: %s" %outCSV
 
-                    print("\tOuput CSV file: %s" %(outCSV))
-                    print("\tConvergence Angle          = " + str(stereoAngs[0]))
-                    print("\tBisector Elevation Angle   = " + str(stereoAngs[1]))
-                    print("\tAsymmetry Angle            = " + str(stereoAngs[2]))
+                # Write line
 
-                    return(str(stereoAngs[0]), str(stereoAngs[1]), str(stereoAngs[2]), hdr, out_attribute_line)
+                #--TMP NO CSV--csvfile.write(out_attribute_line)
+
+                #--TMP NO CSV--print("\tOuput CSV file: %s" %(outCSV))
+                print("\tConvergence Angle          = " + str(stereoAngs[0]))
+                print("\tBisector Elevation Angle   = " + str(stereoAngs[1]))
+                print("\tAsymmetry Angle            = " + str(stereoAngs[2]))
+
+                return(str(stereoAngs[0]), str(stereoAngs[1]), str(stereoAngs[2]), hdr, out_attribute_line)
 
 
 if __name__ == '__main__':
