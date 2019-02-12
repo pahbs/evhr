@@ -181,6 +181,7 @@ def sample_ma(array, sampleStep, min_val=-99):
 def getparser():
     parser = argparse.ArgumentParser(description="Utility to get static control surfaces from a DEM")
     parser.add_argument('dem_fn', type=str, help='DEM filename')
+    parser.add_argument('-out_dir', type=str, default=None, help='Output directory')
     parser.add_argument('-ndv', default=0, type=int, help='Output nodata value (default: %(default)s)')
     parser.add_argument('-max_slope', type=int, default=20, help='Max slope (degrees) that will be included')
     parser.add_argument('-max_rough', type=float, default=0.75, help='Max roughness (diff *input units* from adjacent) to be included')
@@ -358,7 +359,11 @@ def main():
         valid_stats_med = valid_stats[5]
 
     print("\nWriting DEM control surfaces:")
-    dst_fn = os.path.splitext(dem_fn)[0]+'_control.tif'
+    if args.out_dir is not None:
+        dirname, filename = os.path.split(dem_fn)
+        dst_fn = os.path.join(args.out_dir, os.path.splitext(filename)[0]+'_control.tif') )
+    else:
+        dst_fn = os.path.splitext(dem_fn)[0]+'_control.tif'
     print(dst_fn)
     iolib.writeGTiff(newdem, dst_fn, dem_ds)
 
