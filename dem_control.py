@@ -361,7 +361,7 @@ def main():
     print("\nWriting DEM control surfaces:")
     if args.out_dir is not None:
         dirname, filename = os.path.split(dem_fn)
-        dst_fn = os.path.join(args.out_dir, os.path.splitext(filename)[0]+'_control.tif') )
+        dst_fn = os.path.join(args.out_dir, os.path.splitext(filename)[0]+'_control.tif') 
     else:
         dst_fn = os.path.splitext(dem_fn)[0]+'_control.tif'
     print(dst_fn)
