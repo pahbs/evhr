@@ -58,7 +58,7 @@ corr_kern=${13:-21}
 corr_time=${14:-800}
 
  # Optional args: needed for wrangle process
-out_root_arg=${15}
+out_root_arg=${15:-''}
 QUERY=${16:-'true'}
 
 if [ "$ADAPT" = false ]; then
@@ -103,7 +103,8 @@ ncpu=$(lscpu | awk '/^Socket.s.:/ {sockets=$NF} END {print sockets}')
 nlogical_cores=$((nthread_core * ncore_cpu * ncpu ))
 
 # Tough to run SGM on big tiles (~4000?) while using all logical cores (mem-related fails)
-nlogical_cores_use=$((nlogical_cores - 8))
+nlogical_cores_use=$nlogical_cores
+
 if [[ "$host" == *"borg"* ]] ; then
     nlogical_cores_use=$((nlogical_cores - 10))
 fi
@@ -371,16 +372,24 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     fi
 fi
 
-if [ -e "${out}-PC.tif" ] && [ $(gdalinfo "${out}-PC.tif" | awk '/Virtual Raster/ {f=1;exit}END{print f?"true":"false"}') = "false" ] ; then
-    echo; echo "Stereogrammetry failed to produce a valid virtual PC file. Try again from -e 4."
+if [ -e "${out}-PC.tif" ] && 
+    [ $(gdalinfo "${out}-PC.tif" | awk '/GTiff/ {f=1;exit}END{print f?"true":"false"}') = "false" ] && 
+    [ $(gdalinfo "${out}-PC.tif" | awk '/Virtual Raster/ {f=1;exit}END{print f?"true":"false"}') = "false" ] ; then
+
+    echo; echo "Stereogrammetry failed to produce a VALID PC.tif file. Try again from -e 4."
     cmd_stereo=$(echo $cmd_stereo | sed 's/-e 0/-e 4/g')
     date ; echo $cmd_stereo ; echo
     eval time $cmd_stereo
 fi
 
-if [ ! -e "${out}-PC.tif" ] || [ $(gdalinfo "${out}-PC.tif" | awk '/Virtual Raster/ {f=1;exit}END{print f?"true":"false"}') = "false" ] ; then
-    echo; echo "Stereogrammetry failed to produce either a TIF or a valid VRT. Exiting."; date; echo
+if [ ! -e "${out}-PC.tif" ] ; then
+    echo; echo "Stereogrammetry failed to produce the PC.tif file (either a TIF or a valid VRT). Exiting."; date; echo
     exit 1
+elif [ -e "${out}-PC.tif" ] && 
+    [ $(gdalinfo "${out}-PC.tif" | awk '/GTiff/ {f=1;exit}END{print f?"true":"false"}') = "false" ] && 
+    [ $(gdalinfo "${out}-PC.tif" | awk '/Virtual Raster/ {f=1;exit}END{print f?"true":"false"}') = "false" ] ; then
+    echo; echo "Stereogrammetry failed AGAIN to produce a VALID PC.tif file. You're done."
+    exit 1    
 else
     echo; echo "Point-cloud file (from stereogrammetry) can be used to produce DSMs." ; date; echo
 
