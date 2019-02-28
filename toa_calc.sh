@@ -17,15 +17,15 @@ echo "Nadir: $nadir_id"
 
 # edit here to get med res ortho
 #PMedit: ortho=$(ls *${nadir_id}*_ortho_*m.tif | sort -n | head -1)
-ortho=$(ls *${nadir_id}*_ortho.tif | sort -n | tail -1)
+ortho=$(ls *${nadir_id}*_ortho_${res}m.tif | sort -n | tail -1)
 img=$ortho
 echo "Image: $img"
 
-if [ ! -e ${img%.*}_${res}m.tif ] ; then
-    echo "Generating lowres image: ${img%.*}_${res}m.tif"
-    gdalwarp -overwrite -r average -dstnodata 0 -tr $res $res $ortho ${ortho%.*}_${res}m.tif 
-fi
-img=${img%.*}_${res}m.tif
+#if [ ! -e ${img} ] ; then
+#    echo "Generating lowres image: ${img}"
+#    gdalwarp -overwrite -r average -dstnodata 0 -tr $res $res $ortho ${ortho%.*}_${res}m.tif 
+#fi
+#img=${img%.*}_${res}m.tif
 
 if [ -e ${img%.*}_toa.tif ] ; then
     echo "Found existing toa image: ${img%.*}_toa.tif"
