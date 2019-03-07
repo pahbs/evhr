@@ -46,7 +46,12 @@ def find_elapsed_time(start, end):
 # ...also for alreadyQueried and alreadyProcessed outattributes, only batchID, pairname, catID_1 and catID_2 columns might possibly be filled
 
 # function to check if pairname has: already been queried (i.e. directory exists in the same batch in inASP) or already been processed and synced back to DISCOVER
-def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCopyPair): # outAttributes will have as many outAttributes as are known at the time but with 'filler' in the last columm, which will be replaced with approporate reason before getting written to csv
+def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCopyPair, SGM): # outAttributes will have as many outAttributes as are known at the time but with 'filler' in the last columm, which will be replaced with approporate reason before getting written to csv
+
+    if SGM:
+        checkDir = '/att/pubrepo/DEM/hrsi_dsm/v2/'
+    else: checkDir = '/att/pubrepo/DEM/hrsi_dsm/'
+
     alreadyProcessed = False # this starts at False and gets set to true if the pair was already processed
     queryCopyPair = True # start with the assumption that we have not queried/copied this pair for this batch and so we DO want to query/copy
 
@@ -63,8 +68,9 @@ def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCo
         queryCopyPair = False # then skip copy and query. if it has already been queried/copied, skip query copy step but do the rest
 
     # also check to be sure pairname was not already processed in an earlier batch by seeing if it exsits in outASP on ADAPT:
-    checkOut1 = "/att/pubrepo/DEM/hrsi_dsm/{}/out-DEM_4m.tif".format(pairname) # if EITHER of these exist, we dont need to process in DISC
-    checkOut2 = "/att/pubrepo/DEM/hrsi_dsm/{}/out-DEM_1m.tif".format(pairname)
+    checkOut1 = os.path.join(checkDir, pairname, "out-DEM_4m.tif") # if EITHER of these exist, we dont need to process in DISC
+    checkOut2 = os.path.join(checkDir, pairname, "out-DEM_1m.tif")
+
     if os.path.isfile(checkOut1) or os.path.isfile(checkOut2): # already ran successfully and was rsynced back to ADAPT
         alreadyProcessed = True # then skip pairname. even if queryCopyPair is True it will be skipped entirely because continue is before if queryCopyPair
 
@@ -77,7 +83,7 @@ def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCo
     return (queryCopyPair, alreadyProcessed, preLogText)
 
 #def main(csv, ASPdir, batchID, mapprj=True, doP2D=True, rp=100): #* batchID to keep track of groups of pairs for processing # old way- without argparse
-def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, subpixKern, erodeSize, corrKern, corrTime, noP2D, rp, debug): #the 3 latter args are optional #n vinTxt replaces csv
+def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSize, corrKern, corrTime, noP2D, rp, debug): #the 3 latter args are optional #n vinTxt replaces csv
 
     tarzipBatch = False # set as variable for now, might use it but might get rid of it altogether
     test = False # set test to True if we want to run a test, which will not skip the pair if it's already in the hrsi_dsms directory on pubrepo
@@ -202,7 +208,7 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, subpixKern, erodeSize, c
 
         # before continuing, check to see if we need to a) stop processing (alreadyProcessed) b) skip query/copy or c) continue on with process
         outAttributes = '{},{},{},"",{},"",{},{},filler\n'.format(batchID, pairname, catID_1, catID_2, year, month) # this is outAttributes for now. filler will be replaced
-        (queryCopyPair, alreadyProcessed, preLogText) = check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCopyPair)
+        (queryCopyPair, alreadyProcessed, preLogText) = check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCopyPair, SGM)
         # pairnameContinue
 
         # TEST 1/29/18: only editing this below (and commenting the line above) so we can send these test pairs to DISCOVER for comparison
@@ -477,7 +483,7 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, subpixKern, erodeSize, c
             time_limit = '6-00:00:00'
             if sensor == 'WV03': time_limit = '8-00:00:00'
             num_nodes = '1'
-            python_script_args = 'python {} {} {} {} {} {} {} {} {}'.format(os.path.join(DISCdir, 'code', 'evhr', workflowCodeName), pairname, batchID, os.path.join(DISCdir, 'ASP'), preLogTextFile_DISC, subpixKern, erodeSize, corrKern, corrTime)
+            python_script_args = 'python {} {} {} {} {} {} {} {} {} {}'.format(os.path.join(DISCdir, 'code', 'evhr', workflowCodeName), pairname, batchID, os.path.join(DISCdir, 'ASP'), preLogTextFile_DISC, SGM, subpixKern, erodeSize, corrKern, corrTime)
             #print python_script_args #T
 
             # slurm.j file (calls the python code in discover for just one pair)
@@ -572,6 +578,7 @@ if __name__ == '__main__':
     ap.add_argument("-jobID", default='s1862', help = "Job ID (s1861 or s1862)")
     ap.add_argument("-alwaysCopyPair", action='store_true', default=False, help="Include -alwaysCopyPair tag if you want to copy pairs regardless of whether or not it's already been processed")
     # subpixKern, erodeSize, corrKern, corrTime
+    ap.add_argument("-SGM", action='store_true', default=False, help = "Include -SGM if you would like to run in SGM mode") # Default (if -SGM left off) = False
     ap.add_argument("-subpixKern", default=21, help = "Integer specifying the kernel size used for the subpixel method")
     ap.add_argument("-erodeSize", default=0, help = "Isolated blobs with no more than this number of pixels will be removed")
     ap.add_argument("-corrKern", default=21, help = "Integer specifying the size of the correlation kernel used in stereogrammetry")
