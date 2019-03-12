@@ -19,6 +19,7 @@ def run_asp(
     batchID,
     ASPdir,
     preLogTextFile,
+    SGM,
     subpixKern,
     erodeSize,
     corrKern,
@@ -108,7 +109,7 @@ def run_asp(
     rpc_p = ''
     nodes_p = 'false'
     nodesList_p = ''
-    sgm_p = 'true'  # temp for test SGM batch 1/10/2019 SGM = true from now
+    #sgm_p = 'true'  # temp for test SGM batch 1/10/2019 SGM = true from now - 3/7/2019: this is now a parameter passed down from query step --> SGM
 
     # print params to log
     print "Calling {} to perform stereo...".format(stereoCode)
@@ -122,14 +123,14 @@ def run_asp(
     print "  rpcdem: {}".format(rpc_p)
     print "  NODES: {}".format(nodes_p)
     print "  nodeslist: {}".format(nodesList_p)
-    print "  SGM: {}".format(sgm_p)
+    print "  SGM: {}".format(SGM)
     print "  subpix_kern: {}".format(subpixKern)
     print "  erode_max_size: {}".format(erodeSize)
     print "  corr_kern: {}".format(corrKern)
     print "  corr_time: {}\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n".format(corrTime)
 
 
-    command = 'bash {} {} {} {} {} {} {} "{}" {} "{}" {} {} {} {} {}'.format(stereoCode, pairname, test_p, adapt_p, map_p, runStereo_p, batch_p, rpc_p, nodes_p, nodesList_p, sgm_p, subpixKern, erodeSize, corrKern, corrTime)
+    command = 'bash {} {} {} {} {} {} {} "{}" {} "{}" {} {} {} {} {}'.format(stereoCode, pairname, test_p, adapt_p, map_p, runStereo_p, batch_p, rpc_p, nodes_p, nodesList_p, SGM, subpixKern, erodeSize, corrKern, corrTime)
     #subp.check_output([command])
     print 'Command: {}\n'.format(command)
     os.system(command) # try this for now
@@ -208,8 +209,8 @@ if __name__ == "__main__":
     #import sys
     # get variables being passed along from query_db and run_asp with them
     # args:
-    # pairname, batchID, ASPdir, prelogtextFile, subpixKern, erodeSize, corrKern, corrTime
-    run_asp( sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7], sys.argv[8])#, sys.argv[5], sys.argv[6],  sys.argv[7], sys.argv[8],  sys.argv[9], sys.argv[10], sys.argv[11], sys.argv[12], sys.argv[13] ) # 13 arguments (plus python script)
+    # pairname, batchID, ASPdir, prelogtextFile, SGM, subpixKern, erodeSize, corrKern, corrTime
+    run_asp( sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7], sys.argv[8], sys.argv[9])#, sys.argv[5], sys.argv[6],  sys.argv[7], sys.argv[8],  sys.argv[9], sys.argv[10], sys.argv[11], sys.argv[12], sys.argv[13] ) # 13 arguments (plus python script)
 
 
 
