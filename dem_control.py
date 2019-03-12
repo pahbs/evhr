@@ -30,7 +30,7 @@ import scipy.stats
 #TOA Terrain Ruggedness masked
 def get_tri_mask(dem_ds, min_tri):
     print("Applying TRI filter (masking smooth values < %0.4f)" % min_tri)
-    dem = iolib.ds_getma(dem_ds)
+    #dem = iolib.ds_getma(dem_ds)
     tri = geolib.gdaldem_mem_ds(dem_ds, 'TRI', returnma=True)
     tri_mask = np.ma.masked_less(tri, min_tri)
     #This should be 1 for valid surfaces, nan for removed surfaces
@@ -40,7 +40,7 @@ def get_tri_mask(dem_ds, min_tri):
 #DEM roughness mask
 def get_rough_mask(dem_ds, max_rough):
     print("Applying DEM roughness filter (masking values > %0.4f)" % max_rough)
-    dem = iolib.ds_getma(dem_ds)
+    #dem = iolib.ds_getma(dem_ds)
     rough = geolib.gdaldem_mem_ds(dem_ds, 'Roughness', returnma=True)
     rough_mask = np.ma.masked_greater(rough, max_rough)
     #This should be 1 for valid surfaces, nan for removed surfaces
@@ -50,7 +50,7 @@ def get_rough_mask(dem_ds, max_rough):
 #DEM slope mask
 def get_slope_mask(dem_ds, max_slope):
     print("Applying DEM slope filter (masking values > %0.1f)" % max_slope)
-    dem = iolib.ds_getma(dem_ds)
+    #dem = iolib.ds_getma(dem_ds)
     slope = geolib.gdaldem_mem_ds(dem_ds, 'slope', returnma=True)
     slope_mask = np.ma.masked_greater(slope, max_slope)
     #This should be 1 for valid surfaces, nan for removed surfaces
@@ -78,6 +78,7 @@ def get_toa_fn(dem_fn):
         dem_dir = (os.sep).join(dem_dir_list[0:r_idx+1])
         #Find toa.tif in top-level dir
         toa_fn = glob.glob(os.path.join(dem_dir, '*toa.tif'))
+        # Check for *r100.xml here; if not exists, then break
         if not toa_fn:
             # My own version, with an edit to recognize ortho.tif, then use the 4m version of the ortho
             cmd = ['toa_calc.sh', dem_dir]
@@ -101,15 +102,15 @@ def get_min_gaus(ras_fn, sample_step=50, ncomp=3):
     fig_name = ras_fn.split('/')[-1].strip('.tif') + "_" + str(ncomp) + "_" + sample_step_str + '.png'
     i = 0
 
-    out_means = [] 
-    out_stdevs = [] 
+    out_means = []
+    out_stdevs = []
     for w, m, c in zip(weights, means, vars):
         i += 1
         matplotlib.pyplot.plot(histo[1], w*scipy.stats.norm.pdf( histo[1], m, np.sqrt(c) ), linewidth=3)
         #matplotlib.pyplot.axis([min(masked_array.compressed()),max(masked_array.compressed()),0,1])
         gauss_num = 'Gaussian peak #%s' %(i)
-        print '\t' + gauss_num + ' mean: ', m , ' std dev:',np.sqrt(c)
-        #print '\tGaussian peak #%s : mean: %04d , std dev: %04d' %(i, m, np.sqrt(c))
+
+        print 'Gaussian peak #%s (mean, stdv):  %s, %s' %(i, round(m,3), round(np.sqrt(c),3))
 
         out_means.append(m)
         out_stdevs.append(np.sqrt(c))
@@ -120,12 +121,10 @@ def get_min_gaus(ras_fn, sample_step=50, ncomp=3):
     print os.path.join(os.path.dirname(ras_fn),fig_name)
 
     # Find min
-    #print out_means
-    #print out_stdevs
     mean_min = min(out_means)
     stdev = np.sqrt(vars[out_means.index(mean_min)])
-    #print mean_min, stdev
-    return mean_min, stdev    
+
+    return mean_min, stdev
 
 def fit_gaus(masked_array, ncomp):
     """
@@ -163,11 +162,12 @@ def sample_ma(array, sampleStep, min_val=-99):
     # Numpy slicing to sample image for histogram generation
     # Get size
     nrow,ncol = masked_array.shape
-    #print '\n\tRaster histogram: sampling & estimating gaussian peaks'
-    #print '\tArray dims: ' + str(nrow) + " , " + str(ncol)
+    #print '\nRaster histogram: sampling & estimating gaussian peaks'
+    #print 'Array dims: ' + str(nrow) + " , " + str(ncol)
 
     # [start:stop:step]
-    print '\tSampling the rows, cols with sample step: %s' %(sampleStep)
+    print 'Sampling the rows, cols with sample step: %s' %(sampleStep)
+
     masked_array = masked_array[0::sampleStep,0::sampleStep]
     sz = masked_array.size
     #print '\tNum. elements in NEW sampled array: %s' %(sz)
@@ -183,11 +183,12 @@ def getparser():
     parser.add_argument('dem_fn', type=str, help='DEM filename')
     parser.add_argument('-out_dir', type=str, default=None, help='Output directory')
     parser.add_argument('-ndv', default=0, type=int, help='Output nodata value (default: %(default)s)')
-    parser.add_argument('-max_slope', type=int, default=20, help='Max slope (degrees) that will be included')
-    parser.add_argument('-max_rough', type=float, default=0.75, help='Max roughness (diff *input units* from adjacent) to be included')
-    parser.add_argument('-min_toa', type=float, default=0.15, help='Min TOA to be included')
-    parser.add_argument('-min_toatri', type=float, default=0.001, help='Min TOA TRI (the smoothest surfaces) to be included')
-    parser.add_argument('-filt_param', nargs=3, default=None, help='Filter parameter list (e.g., size, min max, ref_fn min max)')
+    parser.add_argument('-max_slope', type=int, default=20, help='Max slope (degrees) that will be included (default: %(default)s)')
+    parser.add_argument('-max_rough', type=float, default=0.75, help='Max roughness (diff *input units* from adjacent) to be included (default: %(default)s)')
+    parser.add_argument('-min_toa', type=float, default=0.15, help='Min TOA to be included (default: %(default)s)')
+    parser.add_argument('-min_toatri', type=float, default=0.001, help='Min TOA TRI (the smoothest surfaces) to be included (default: %(default)s)')
+    parser.add_argument('-filt_param', nargs=3, default=None, help='Filter parameter list (e.g., size, min max, ref_fn min max) (default: %(default)s)')
+    #parser.add_argument('-dem_coarscomp_fn', type=str, default=None, help='The filename of the coarse companion to an input DEM (default: %(default)s)')
     parser.add_argument('--dilate_con', type=int, default=None, help='Dilate control mask with this many iterations (default: %(default)s)')
     parser.add_argument('--dilate_toa', type=int, default=None, help='Dilate TOA mask with this many iterations (default: %(default)s)')
     parser.add_argument('--no-filtdz', dest='filtdz', action='store_false', help='Turn dz filtering off')
@@ -200,6 +201,8 @@ def getparser():
     parser.set_defaults(toatrimask=True)
     parser.add_argument('--no-slopemask', dest='slopemask', action='store_false', help='Turn slope masking off')
     parser.set_defaults(slopemask=True)
+    #parser.add_argument('--no-slopemask-coarse', dest='slopemaskcoarse', action='store_false', help='Turn coarse slope masking off')
+    #parser.set_defaults(slopemaskcoarse=True)
     return parser
 
 def main():
@@ -216,14 +219,14 @@ def main():
 
     #Basename for output files
     out_fn_base = os.path.splitext(dem_fn)[0]
-    
+
     #Need some checks on these
     param = args.filt_param
     if param is not None and len(param) == 1:
         param = param[0]
     # Get original DEM
     dem = iolib.fn_getma(dem_fn)
-    
+
     print("\nLoading input DEM into masked array")
     dem_ds = iolib.fn_getds(dem_fn)
 
@@ -265,72 +268,85 @@ def main():
     #    Slope
 
     if args.toamask or args.toatrimask:
+        try:
+            print("\nCompute TOA from ortho...\n")
+            toa_fn = get_toa_fn(dem_fn)
+            print("\nWarp TOA to DEM...\n")
+            toa_ds = warplib.memwarp_multi_fn([toa_fn,], res=dem_ds, extent=dem_ds, t_srs=dem_ds)[0]
 
-        print("\nCompute TOA from ortho...\n")
-        toa_fn = get_toa_fn(dem_fn)
-        print("\nWarp TOA to DEM...\n")
-        toa_ds = warplib.memwarp_multi_fn([toa_fn,], res=dem_ds, extent=dem_ds, t_srs=dem_ds)[0]
-        
-        if args.toamask:
+            if args.toamask:
 
-            if compute_min_toa:
-                
-                # Compute a good min TOA value
-                m,s = get_min_gaus(toa_fn, 50, 4)
-                min_toa = m + s
-                min_toa = m
-            else:
-                min_toa = args.min_toa
+                if compute_min_toa:
 
-            with open(os.path.join(os.path.split(toa_fn)[0], "min_toa.txt"), "w") as text_file:
-                text_file.write(os.path.basename(__file__))
-                text_file.write("\nMinimum TOA used for mask:\n{0}".format(min_toa))
+                    # Compute a good min TOA value
+                    m,s = get_min_gaus(toa_fn, 50, 4)
+                    min_toa = m + s
+                    min_toa = m
+                else:
+                    min_toa = args.min_toa
 
-            # Should mask dark areas and dilate
-            toa_mask = get_toa_mask(toa_ds, min_toa)
+                with open(os.path.join(os.path.split(toa_fn)[0], "min_toa.txt"), "w") as text_file:
+                    text_file.write(os.path.basename(__file__))
+                    text_file.write("\nMinimum TOA used for mask:\n{0}".format(min_toa))
 
-            #Dilate the mask
-            if args.dilate_toa is not None:
-                niter = args.dilate_toa 
-                print("Dilating TOA mask with %i iterations" % niter)
-                from scipy import ndimage
-                toa_mask = ~(ndimage.morphology.binary_dilation(~toa_mask, iterations=niter))
+                # Should mask dark areas and dilate
+                toa_mask = get_toa_mask(toa_ds, min_toa)
 
-            controlmask = np.logical_and(toa_mask, controlmask)
+                #Dilate the mask
+                if args.dilate_toa is not None:
+                    niter = args.dilate_toa
+                    print("Dilating TOA mask with %i iterations" % niter)
+                    from scipy import ndimage
+                    toa_mask = ~(ndimage.morphology.binary_dilation(~toa_mask, iterations=niter))
 
-            # Mask islands here
-            controlmask = malib.mask_islands(controlmask, 5)
+                controlmask = np.logical_and(toa_mask, controlmask)
 
-            if writeall:
-                out_fn = out_fn_base+'_toamask.tif'
-                print("Writing out %s\n" % out_fn)
-                iolib.writeGTiff(toa_mask, out_fn, src_ds=dem_ds)
+                # Mask islands here
+                controlmask = malib.mask_islands(controlmask, 5)
 
-        if args.toatrimask:
-            # Should mask smooth areas (measures local variance)
-            toa_tri_mask = get_tri_mask(toa_ds, args.min_toatri)
-            controlmask = np.logical_and(toa_tri_mask, controlmask)
+                if writeall:
+                    out_fn = out_fn_base+'_toamask.tif'
+                    print("Writing out %s\n" % out_fn)
+                    iolib.writeGTiff(toa_mask, out_fn, src_ds=dem_ds)
 
-            if writeall:
-                out_fn = out_fn_base+'_toatrimask.tif'
-                print("Writing out %s\n" % out_fn)
-                iolib.writeGTiff(toa_tri_mask, out_fn, src_ds=dem_ds)
+            if args.toatrimask:
+                # Should mask smooth areas (measures local variance)
+                toa_tri_mask = get_tri_mask(toa_ds, args.min_toatri)
+                controlmask = np.logical_and(toa_tri_mask, controlmask)
+
+                if writeall:
+                    out_fn = out_fn_base+'_toatrimask.tif'
+                    print("Writing out %s\n" % out_fn)
+                    iolib.writeGTiff(toa_tri_mask, out_fn, src_ds=dem_ds)
+
+        except Exception, e:
+            print "\tFailed to apply TOA masking)."
 
     if args.slopemask:
         slope_mask = get_slope_mask(dem_ds, args.max_slope)
         controlmask = np.logical_and(slope_mask, controlmask)
+
+        #if args.slopemaskcoarse:
+
+            #dem_fn2 = args.dem_coarscomp_fn
+
+            #print("\nLoading input coarse DEM into masked array")
+            #dem2_ds = iolib.fn_getds(dem_fn2)
+            #slope_mask = get_slope_mask(dem2_ds, args.max_slope)
+            #controlmask = np.logical_and(slope_mask, controlmask)
+
         if writeall:
             out_fn = out_fn_base+'_slopemask.tif'
             print("Writing out %s\n" % out_fn)
-            iolib.writeGTiff(slope_mask, out_fn, src_ds=dem_ds)  
+            iolib.writeGTiff(slope_mask, out_fn, src_ds=dem_ds)
 
     # CHM mask will be a subset of the Control mask; slope_mask, toa_mask, toa_tri_mask
     chmmask = controlmask
     print("Generating final CHM mask to apply later")
     out_fn = out_fn_base+'_chmmask.tif'
     print("Writing out %s\n" % out_fn)
-    iolib.writeGTiff(chmmask, out_fn, src_ds=dem_ds) 
-  
+    iolib.writeGTiff(chmmask, out_fn, src_ds=dem_ds)
+
     if args.roughmask:
         rough_mask = get_rough_mask(dem_ds, args.max_rough)
         controlmask = np.logical_and(rough_mask, controlmask)
@@ -338,20 +354,20 @@ def main():
             out_fn = out_fn_base+'_roughmask.tif'
             print("Writing out %s\n" % out_fn)
             iolib.writeGTiff(rough_mask, out_fn, src_ds=dem_ds)
-       
+
     print("Generating final mask to use for reference surfaces, and applying to input DEM")
     #Now invert to use to create final masked array
     controlmask = ~controlmask
 
     #Dilate the mask
     if args.dilate_con is not None:
-        niter = args.dilate_con 
+        niter = args.dilate_con
         print("Dilating control mask with %i iterations" % niter)
         from scipy import ndimage
         controlmask = ~(ndimage.morphology.binary_dilation(~controlmask, iterations=niter))
 
     #Apply mask to original DEM - use these surfaces for co-registration
-    newdem = np.ma.array(dem, mask=controlmask) 
+    newdem = np.ma.array(dem, mask=controlmask)
 
     if True:
         print("\nStats of valid DEM with maskes applied:")
@@ -361,7 +377,7 @@ def main():
     print("\nWriting DEM control surfaces:")
     if args.out_dir is not None:
         dirname, filename = os.path.split(dem_fn)
-        dst_fn = os.path.join(args.out_dir, os.path.splitext(filename)[0]+'_control.tif') 
+        dst_fn = os.path.join(args.out_dir, os.path.splitext(filename)[0]+'_control.tif')
     else:
         dst_fn = os.path.splitext(dem_fn)[0]+'_control.tif'
     print(dst_fn)

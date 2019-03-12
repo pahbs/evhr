@@ -35,6 +35,8 @@ fi
 if [[ "$host" == *"ecotone"* ]] || [[ "$host" == *"himat"* ]] ; then
     tile_size=2000
 fi
+# For writing to DASS
+DASS_dir='/att/pubrepo/DEM/hrsi_dsm/v2'    #requires write access from launch VM
 
 # Required Args (optional args like ${N})
 pairname=$1
@@ -61,6 +63,9 @@ corr_time=${14:-800}
 out_root_arg=${15:-''}
 QUERY=${16:-'true'}
 
+# Only preprocess
+PPRC=${17:-'false'}
+
 if [ "$ADAPT" = false ]; then
     TEST=false
 fi
@@ -78,7 +83,7 @@ if [ "$ADAPT" = true ]; then
 else
     out_root=/discover/nobackup/projects/boreal_nga/ASP/${batch_name}
 fi
-if [ ! -z "$out_root_arg" ]; then # if outdir parameter is supplied ($15) regardless of adapt/discover, set out_root to it
+if [[ ! -z "${out_root_arg// }" ]]; then # if outdir parameter is supplied ($15) regardless of adapt/discover, set out_root to it
     out_root=$out_root_arg
 fi
 mkdir -p $out_root
@@ -113,6 +118,9 @@ if [[ "$host" == *"crane"* ]] ; then
 fi
 if [[ "$host" == *"ecotone"* ]] || [[ "$host" == *"himat"* ]] ; then
     nlogical_cores_use=$((nlogical_cores - 4))
+    if [[ "$host" == "ecotone10" ]] || [[ "$host" == "ecotone06" ]] ; then
+        nlogical_cores_use=$nlogical_cores
+    fi
 fi
 
 echo
@@ -310,6 +318,10 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     if [ ! -z "$crop" ]; then
         stereo_opts+=" --left-image-crop-win $crop"
     fi
+    if [ "$PPRC" = true ] ; then
+        e=0
+        stereo_opts+=" --stop-point=1"
+    fi
 
     # Done like this so, if present, rpcdem is last
     stereo_args="${in_left%.*}${outext}.tif ${in_right%.*}${outext}.tif ${in_left%.*}${outext}.xml ${in_right%.*}${outext}.xml ${out} $stereo_args"
@@ -392,18 +404,20 @@ elif [ -e "${out}-PC.tif" ] &&
     exit 1    
 else
     echo; echo "Point-cloud file (from stereogrammetry) can be used to produce DSMs." ; date; echo
+    cmd_list=''
 
     if gdalinfo ${out}-PC.tif | grep -q VRT ; then
-        echo; echo "Convert PC.tif from virtual to real"; echo
-        eval time gdal_translate $gdal_opts ${out}-PC.tif ${out}-PC_full.tif
-        mv ${out}-PC_full.tif ${out}-PC.tif
-        if [ ! -e ${out}-PC.tif ] ; then
-             echo "Failed to convert to real PC.tif. Exiting."
-             exit 1
-        fi
-        if [ "$RUN_PSTEREO" = true ] ; then
-            echo; echo "Removing intermediate parallel_stereo dirs..."
-            rm -rf ${out}-*/
+        
+        echo; echo "Convert PC.tif from virtual to real" ; echo
+
+        cmd="time gdal_translate $gdal_opts ${out}-PC.tif ${out}-PC_full.tif; mv ${out}-PC_full.tif ${out}-PC.tif ;"
+
+        if [ "$parallel_point2dem" = true ] ; then
+            echo "Adding PC conversion cmd to list..."
+            cmd_list+=\ \'$cmd\'
+        else
+            eval $cmd
+            cmd_list=''
         fi
     fi
 
@@ -416,7 +430,7 @@ else
     fine_dem=${out}-DEM_${fine_res}m.tif
 
     date ; echo "DEM Generation..."; echo
-    cmd_list=''
+    #cmd_list=''
     dem_ndv=-99
 
     base_dem_opts=" --remove-outliers --remove-outliers-params 75.0 3.0"
@@ -446,7 +460,7 @@ else
               mv ${out}_${dem_res}m-DEM.tif ${out}-DEM_${dem_res}m.tif
           fi
         else
-            echo "Finished: ${out}-DEM_${dem_res}m.tif"
+            echo; echo "Finished: ${out}-DEM_${dem_res}m.tif"
         fi      
     done
     
@@ -460,18 +474,31 @@ else
         echo; date; echo;
         eval parallel --progress -verbose -j $njobs ::: $cmd_list
     fi
-    num_dems=$(ls ${out}-DEM_*m.tif | wc -l)
 
-    if [ "$num_dems" -lt "1" ] ; then 
-        echo "Failed to create at least 1 DEM (point2dem). Exiting."
+    if [ ! -e ${out}-PC.tif ] ; then
+        echo; echo "Failed to convert to real PC.tif. Exiting."
         exit 1
     fi
+    if [ "$RUN_PSTEREO" = true ] ; then
+        echo; echo "Removing intermediate parallel_stereo dirs..."
+        rm -rf ${out}-*/
+    fi
 
-    echo; echo "Shaded Relief Generation..." ; echo
-    hs_dem.sh ${out}-DEM_${fine_res}m.tif ${out}-DEM_${mid_res}m.tif ${out}-DEM_${stats_res}m.tif
+    num_dems=$(ls ${out}-DEM_*m.tif | wc -l)
 
+    if [ "$num_dems" -lt "1" ] ; then echo "Failed to create at least 1 DEM (point2dem). Exiting." ; exit 1 ; fi
     num_hs=$(ls ${out}-DEM_*hs_az*.tif | wc -l)
+
+    if [ "$num_hs" -lt "3" ] ; then
+        echo; echo "Shaded Relief Generation..." ; echo
+        hs_dem.sh ${out}-DEM_${fine_res}m.tif ${out}-DEM_${mid_res}m.tif ${out}-DEM_${stats_res}m.tif
+    else
+        echo "Finished: `ls ${out}-DEM_*hs_az*.tif`"
+    fi  
+
+    num_hs=$(ls ${out}-DEM_*hs_az*.tif | wc -l)    
     if [ "$num_hs" -lt "1" ] ; then echo "Failed to create at least 1 shaded-relief image (hs_dem.sh). Exiting." ; exit 1 ; fi
+    
     ortho_opts="--nodata-value 0"
 
     map_opts="$ortho_opts"
@@ -535,10 +562,15 @@ else
 
     fi
     if [ "$ADAPT" = true ] ; then
+
+        #echo; echo "Moving to DASS..."; echo
+        #mv ${out_root}/${pairname} ${DASS_dir}
+
         echo; echo "Symlink Generation..."; echo
         mkdir -p ${out_root}/_ortho
         mkdir -p ${out_root}/_dem
         mkdir -p ${out_root}/_hs
+
         for i in $out_ortho ${out_ortho%.*}_${mid_res}m.tif ; do
             ln -sfv ${i} ${out_root}/_ortho/$(basename ${i})
         done
@@ -549,32 +581,20 @@ else
         done
     fi
 
-    if [ "$TEST" = true ] ; then
-        echo; echo "TEST run: Keeping all intermediate files..."
+    if [ "$TEST" = true ] || [ "$PPRC" = true ] ; then
+        echo; echo "Keeping intermediate files..."
     else
         echo; echo "Removing intermediate files..."
     
-        if [ -e ${out}-DEM_native.tif ]; then
-	 	    rm -v ${out}-DEM_native.tif
-        fi
-
-        for i in $(ls ${out_root}/${pairname}/*P1BS*ortho.tif); do
-            rm -v ${i%.*}*
-        done
-
+        if [ -e ${out}-DEM_native.tif ]; then rm ${out}-DEM_native.tif ; fi
+        for i in $(ls ${out_root}/${pairname}/*P1BS*ortho.tif); do rm ${i%.*}* ; done
         rm -rf $(ls ${out_root}/${pairname}/*.{tif,xml} | grep _corr)
         rm ${out}-log-stereo_parse*.txt
+        if [ -e "${out_ortho}" ] ; then rm "${out_root}/${pairname}/"*.r100*.tif ; fi
+        rm "${out_root}/${pairname}/"out.*
+        rm "${out_root}/${pairname}/"*warp.tif
+        for i in sub.tif Mask.tif .match .exr center.txt ramp.txt; do rm -v ${out}-*${i} ; done
 
-        if [ -e "${out_ortho}" ] ; then
-            rm -v "${out_root}/${pairname}/"*.r100*.tif
-        fi
-
-        rm -v "${out_root}/${pairname}/"out.*
-        rm -v "${out_root}/${pairname}/"*warp.tif
-
-        for i in sub.tif Mask.tif .match .exr center.txt ramp.txt; do
-            rm -v ${out}-*${i}
-        done
         for i in F L R RD D GoodPixelMap DEM-clr-shd DEM-hlshd-e25 DRG; do
             if [ -e "${out}-${i}.tif" ]; then
                 rm -v "${out}-${i}.tif"

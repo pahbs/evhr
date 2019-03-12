@@ -19,7 +19,8 @@ import numpy as np
 from osgeo import gdal
 from pygeotools.lib import geolib, iolib, malib, timelib
 
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
+import dem_control
 
 from imview.lib import gmtColormap, pltlib
 cpt_rainbow = gmtColormap.get_rainbow()
@@ -27,10 +28,13 @@ cpt_rainbow = gmtColormap.get_rainbow()
 #PMedit: site = 'hma'
 
 #Minimum number of points required to write out _ref.csv
-min_pts = 5
+min_pts = 2
 
 #Maximum value of surface slope to use
 max_slope = 20.
+
+#Reference DEM for masking
+refdem_filt_list = ['/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/data/tandemx/TDM90/mos/TDM1_90m_circ_DEM.vrt', -15, 15]
 
 pt_srs = geolib.wgs_srs
 # Python indexing starts with 0
@@ -100,6 +104,7 @@ else:
 dem_fn_list = sys.argv[2:]
 
 for n,dem_fn in enumerate(dem_fn_list):
+
     print("%i of %i" % (n+1, len(dem_fn_list)))
     #Lat/lon extent filter
     print("Loading DEM: %s" % dem_fn)
@@ -117,9 +122,11 @@ for n,dem_fn in enumerate(dem_fn_list):
     wflen  = glas_pts[:,wflencol]
 
     idx = ((x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax) & (satndx < SatNdx_thresh) & (cld < cld1_mswf_thresh) & (FRir == FRir_val) & (wflen < wflen_thresh))
- 
+    #idx = ((x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax))
+
     if idx.nonzero()[0].size == 0:
         print("No points after spatial & quality filtering")
+        # this 'continue' makes script go to next item in for loop instead of proceeding through the rest of code below
         continue
 
     print("Sampling DEM at masked point locations") 
@@ -163,6 +170,8 @@ for n,dem_fn in enumerate(dem_fn_list):
         dem_mask_ds = gdal.Open(dem_mask_fn) 
         dem_mask = iolib.ds_getma(dem_mask_ds) 
     else:
+        # Create mask here; INCOMPLETE; dont know how to specify flags (eg '--no-toamask') in call below
+        #dem_mask_fn = dem_control.main(dem_fn, filt_param=refdem_filt_list)
         dem_mask_ds = dem_ds
         dem_mask = dem_ma
 
@@ -195,12 +204,16 @@ for n,dem_fn in enumerate(dem_fn_list):
         continue
 
     glas_pts_fltr_mask = glas_pts_fltr[samp_idx]
+    glas_pts_fltr_mask_asp =  glas_pts_fltr_mask[:,[ycol,xcol,zcol]]
 
     if os.path.exists(dem_mask_fn):
         print("Writing out %i points after mask" % glas_pts_fltr_mask.shape[0]) 
         out_csv_fn_mask = os.path.splitext(out_csv_fn)[0]+'_ref.csv'
+        #lat,lon,elev_ground for pc_align
+        out_csv_fn_mask_asp = os.path.splitext(out_csv_fn)[0]+'_ref_asp.csv'
         #Could add DEM samp columns here
         np.savetxt(out_csv_fn_mask, glas_pts_fltr_mask, fmt=fmt, delimiter=',')
+        np.savetxt(out_csv_fn_mask_asp, glas_pts_fltr_mask_asp, fmt='%0.6f, %0.6f, %0.2f', delimiter=',')
 
     x_fltr_mask = glas_pts_fltr_mask[:,xcol]
     y_fltr_mask = glas_pts_fltr_mask[:,ycol]

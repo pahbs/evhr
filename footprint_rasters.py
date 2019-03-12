@@ -114,6 +114,7 @@ def getparser():
     parser.add_argument('-kml', action='store_true', default=False, help='Output kml of footprints for Google Earth')
     parser.add_argument('-csv', action='store_true', default=False, help='Output csv of attributes')
     parser.add_argument('-link', action='store_true', default=False, help='Write a symlink')
+    parser.add_argument('-proj', type=str, default='polar', help='Specify prj type with a name')
     return parser
 
 def main():
@@ -157,6 +158,17 @@ def main():
 
     if not out_shp.endswith('shp'):
         out_shp_fn += '.shp'
+
+    # Projections
+    proj = args.proj
+    #default is polar
+    proj4 = "'+proj=stere +lat_0=90 +lat_ts=71 +lon_0=0 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs'"
+    
+    if 'modis' in proj:
+        proj4 = "'+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'"
+        proj4 = "'+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs'"
+    if 'wgs' in proj:
+        proj4 = "'+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs'"
 
     print "\n\tRunning footprints on: %s\n" %ras_dir
 
@@ -242,7 +254,7 @@ def main():
                     cmdStr = "ogr2ogr {} {} -where 'DN>0'".format(tmp5, tmp4)
                     run_wait_os(cmdStr,print_stdOut=False)
                     print "\t\t...REPROJECT..."
-                    cmdStr = "ogr2ogr -f 'ESRI Shapefile' -t_srs EPSG:3995 {} {} -overwrite".format(tmp6, tmp5)
+                    cmdStr = "ogr2ogr -f 'ESRI Shapefile' -t_srs {} {} {} -overwrite".format(proj4,tmp6, tmp5)
                     run_wait_os(cmdStr,print_stdOut=False)
                     print "\t\t...DISSOLVE/AGGREGATE INTO 1 FEATURE..."
                     input_basename = os.path.split(tmp6)[1].replace(".shp","")
