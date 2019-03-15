@@ -30,12 +30,12 @@ mkdir -p $workdir
 dem=$workdir/${dem_file}
 
 #Pubrepo files needed: out-DEM_*.tif, *.xml; Need to needed files to NOBACKUP
-ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/*ortho*tif $test_dir/$pairname
+ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/*ortho*tif $main_dir/$pairname
 xml_fn_list=$(ls /att/pubrepo/DEM/hrsi_dsm/$pairname/*.xml)
-ln -sf $xml_fn_list $test_dir/$pairname
-ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/out-DEM*m.tif $test_dir/$pairname
+ln -sf $xml_fn_list $main_dir/$pairname
+ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/out-DEM*m.tif $main_dir/$pairname
 if [ $main_dir = $test_dir ] ; then
-    ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/out-DEM*m*hs*.tif $test_dir/$pairname
+    ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/out-DEM*m*hs*.tif $main_dir/$pairname
 fi
 
 mkdir -p $main_dir/logs_coreg2glas
