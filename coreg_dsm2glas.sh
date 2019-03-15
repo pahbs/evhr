@@ -15,9 +15,9 @@ script_name=$(basename ${0})
 pairname=${1}
 main_dir=${2:-''}
 dem_file=${3:-'out-DEM_1m.tif'}
+glas=${4:-'/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/data/glas/circ_boreal/gla01-boreal50up-data.csv'}
+ref_dem=${5:-'/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/data/tandemx/TDM90/mos/TDM1_90m_circ_DEM.vrt'}
 
-glas='/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/data/glas/circ_boreal/gla01-N50E250-data.csv' #gla01_boreal-data.csv'
-ref_dem='/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/data/tandemx/TDM90/mos/TDM1_90m_circ_DEM.vrt'
 elev_range="-15 15"
 test_dir='/att/gpfsfs/briskfs01/ppl/pmontesa/tmp/test2'
 
