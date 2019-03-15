@@ -1,9 +1,11 @@
 #! /usr/bin/env python
 
 #Filter preprocessed ICESat-1 GLAS points for a given input raster
-#PMedit: This script has been heavily edited to accomodate our forest structure DEM Workflow
-# Here, we read in:
-#    a previously prepared glas csv (*asp.csv; from pc_align_prep.sh)
+# 
+# required: source ~/anaconda3/bin/activate py2
+#
+# We read in:
+#    a previously prepared glas csv
 #    out-DEM_4m.tif that has a previously completed out-DEM_4m_control.tif (from dem_control.py)
 
 # Slope filtering set to 'false' because it was done in dem_control.py
@@ -19,89 +21,170 @@ import numpy as np
 from osgeo import gdal
 from pygeotools.lib import geolib, iolib, malib, timelib
 
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import dem_control
 
 from imview.lib import gmtColormap, pltlib
 cpt_rainbow = gmtColormap.get_rainbow()
 
-#PMedit: site = 'hma'
+def glas_qfilt(glas_pts, satndxcol=14, cldcol=17, FRircol=18, wflencol=25):
+    """Do quality filtering of ICESat-GLAS using standard filtering
+    """
+    #GLAS GLA14 Record Metadata:
+    #https://nsidc.org/data/docs/daac/glas_altimetry/gla14_records.html
+    #https://nsidc.org/data/glas/data-dictionary-glah14
+    #
+    #GLAS shot quality indicators
+    #----------------------------
+    FRir_val = 15	        #valid equal to this value:     indicates 'cloudless' waveforms
+    SatNdx_thresh = 2	    #valid less than this value:	indicates signals that are not 'saturated'
+    cld1_mswf_thresh = 15	#valid less than this value:    indicates signals not affected by multiple scattering	
+    wflen_thresh = 50		#valid less than this value:    indicates the total length (m) of the waveform
+
+    print("Applying quality filter") 
+    satndx = glas_pts[:,satndxcol]
+    cld    = glas_pts[:,cldcol]
+    FRir   = glas_pts[:,FRircol]
+    wflen  = glas_pts[:,wflencol]
+
+    idx = ((satndx < SatNdx_thresh) & (cld < cld1_mswf_thresh) & (FRir == FRir_val) & (wflen < wflen_thresh))
+    glas_pts = glas_pts[idx]
+
+    return glas_pts
 
 #Minimum number of points required to write out _ref.csv
 min_pts = 2
 
 #Maximum value of surface slope to use
-max_slope = 20.
+max_slope = 20
 
 #Reference DEM for masking
 refdem_filt_list = ['/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/data/tandemx/TDM90/mos/TDM1_90m_circ_DEM.vrt', -15, 15]
 
 pt_srs = geolib.wgs_srs
-# Python indexing starts with 0
-# This is time column: but we need to convert to YYYYMMDD
-tcol = 3    # this is needed for specifying the min of the col range
-xcol = 5    #lon
-ycol = 4    #lat
-zcol = 8    #elev_ground; also this is the max of the col range
 
-#GLAS GLA14 Record Metadata:
-#https://nsidc.org/data/docs/daac/glas_altimetry/gla14_records.html
-#https://nsidc.org/data/glas/data-dictionary-glah14
-#
-#GLAS shot quality indicators
-#----------------------------
-FRir_val = 15	        #valid equal to this value:     indicates 'cloudless' waveforms
-SatNdx_thresh = 2	    #valid less than this value:	indicates signals that are not 'saturated'
-cld1_mswf_thresh = 15	#valid less than this value:     indicates signals not affected by multiple scattering	
-wflen_thresh = 50		#valid less than this value:    indicates the total length (m) of the waveform
+# Header & format from $NOBACKUP/userfs02/data/glas/circ_boreal
+hdr_pre="rec_ndx,shotn,datatake,"
+fmt_pre='%i, %i, %s,'
 
-satndxcol = 14 
-cldcol = 17
-FRircol = 18
-wflencol = 25
+hdr="date,lat,lon,elev,elev_geoid,elev_ground,"
+fmt='%0.2f, %0.6f, %0.6f, %0.3f, %0.2f, %0.2f,'
+hdr+="g14_rh100,g14rh50,g14_wflen,BeamCoelv,DEM_hires_src,satNdx,satElevCorr,"
+fmt+='%0.4f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f,'
+hdr+="ElvuseFlg,cld1_mswf,FRir_qaFlag,lead,trail,MedH,MeanH,QMCH,Centroid,wflen,"
+fmt+='%0.5f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f,'
 
-mincol = tcol
-maxcol = wflencol
+hdr+="ht1,ht2,ht3,ht4,fslope,eratio,Senergy,"
+fmt+='%0.6f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f,'
+hdr+="h10,h20,h25,h30,h40,h50,h60,h70,h75,h80,h90,h100"
+fmt+='%0.7f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.8f, %0.2f'
 
-tcol = tcol - mincol
-xcol = xcol - mincol
-ycol = ycol - mincol
-zcol = zcol - mincol
+hdr_full=hdr_pre + hdr 
+fmt_full=fmt_pre + fmt
 
-satndxcol = satndxcol - mincol
-cldcol = cldcol - mincol
-FRircol = FRircol - mincol
-wflencol = FRircol - mincol
+hdr_full_list = hdr_full.split(',')
+fmt_full_list = fmt_full.split(',')
 
+# For choosing the range of cols for loadtxt: the min max of the intial input
+mincol = hdr_full_list.index('date')        # this is needed for specifying the min of the col range
+maxcol = hdr_full_list.index('wflen')       # this is needed for specifying the max of the col range
+
+# Filter out some problematic cols: some cols in the range will have rare problematic rows (eg; 2 cols combined)
+hdr_filt_list = hdr_full_list[mincol:maxcol+1]
+
+# Filter out some problematic cols: some cols in the range will have rare problematic rows (eg; 2 cols combined)
+#exclude_list = [hdr_full_list.index('rec_ndx'), hdr_full_list.index('shotn'), hdr_full_list.index('datatake'), hdr_full_list.index('eratio') , hdr_full_list.index('Senergy') ]
+#hdr_idx_list = [item for item in range(0,len(hdr_full_list)) if item not in exclude_list]
+#hdr_idxexcl_list = [item for item in range(0,len(hdr_full_list)) if item in exclude_list]
+#hdr_excl_list = [hdr_full_list[i] for i in hdr_idxexcl_list]
+#hdr_filt_list = [hdr_full_list[i] for i in hdr_idx_list]
+#fmt_filt_list = [fmt_full_list[i] for i in hdr_idx_list]
+#print("Hdr filt list 1: ", hdr_filt_list)
+
+# Cut down hdr and fmt lists accordingly
+hdr_filt_list = hdr_full_list[mincol:maxcol + 1]
+fmt_filt_list = fmt_full_list[mincol:maxcol + 1]
+print("Hdr filt list: ", hdr_filt_list)
+
+tcol = hdr_filt_list.index('date')
+xcol = hdr_filt_list.index('lon')         #lon
+ycol = hdr_filt_list.index('lat')         #lat
+zcol = hdr_filt_list.index('elev_ground') #elev_ground; also this is the max of the col range
+satndxcol = hdr_filt_list.index('satNdx')
+cldcol = hdr_filt_list.index('cld1_mswf')
+FRircol = hdr_filt_list.index('FRir_qaFlag')
+wflencol = hdr_filt_list.index('wflen')
+
+hdr_out = ','.join(hdr_filt_list)
+fmt_out = ','.join(fmt_filt_list)
 
 #Padding in pixels for sample radius
 #PMedit: we use 4m DEM, sp pad with 8 pixels //Since we're likely dealing with 32-m products here, can just use pad=1
 pad = 8
-#pad = 'glas'
 
-#PMedit:glas_dir = '/nobackupp8/deshean/icesat_glas'
 glas_fn = sys.argv[1]
 print(glas_fn)
+
 glas_dir, ext = os.path.split(glas_fn)   #'/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/data/glas/misc/tiles_5deg_old/csv_files'
 ext = os.path.splitext(ext)[0]           #'gla14_N60-70_asp'
-#PMedit:ext = 'GLAH14_%s_refdemfilt' % site        
+      
 
-glas_npz_fn = os.path.join(glas_dir, ext+'.npz')
+glas_npz_fn = os.path.join(glas_dir, ext + '.npz')
+glas_npz_qfilt_fn = os.path.join(glas_dir, ext + '_qfilt.npz')
+glas_qfilt_csv =    os.path.join(glas_dir, ext + '_qfilt.csv') 
+print("")
 
 if not os.path.exists(glas_npz_fn):
+    # Make npz
     glas_csv_fn = os.path.splitext(glas_npz_fn)[0]+'.csv'
     print("Loading csv: %s" % glas_csv_fn)
-    glas_pts = np.loadtxt(glas_csv_fn, delimiter=',', skiprows=1, dtype=None, usecols=range(mincol,maxcol+1))
 
+    print("Full hdr length is %s" % (len(hdr_full_list) ) )
+    print("Full hdr is: %s" % (hdr_full_list ) )
+
+    print("Filtered hdr length is %s" % (len(hdr_filt_list) ) )
+    #print("Filtered hdr removed cols: %s" % (hdr_excl_list) )
+
+    glas_pts = np.loadtxt(glas_csv_fn, delimiter=',', skiprows=1, dtype=None, usecols=range(mincol,maxcol+1)) #hdr_idx_list)
+
+    print("Check # cols of incoming set of GLAS", glas_pts.shape[1])
     print("Saving npz: %s" % glas_npz_fn)
     np.savez_compressed(glas_npz_fn, glas_pts)
 
+    print("Doing quality filtering of ICESat-GLAS using standard filtering")
+    glas_pts = glas_qfilt(glas_pts, satndxcol=satndxcol, cldcol=cldcol, FRircol=FRircol, wflencol=wflencol)
+
+    print("Saving quality filtered npz: %s" % glas_npz_qfilt_fn)
+    np.savez_compressed(glas_npz_qfilt_fn, glas_pts)
+
 else:
-    #This takes ~5 seconds to load ~9M records with 8 fields
-    print("Loading npz: %s" % glas_npz_fn)
-    glas_pts = np.load(glas_npz_fn)['arr_0']
+    #Load npz
+    if not os.path.exists(glas_npz_qfilt_fn):
+        #Not yet quality filtered
+        #This takes ~5 seconds to load ~9M records with 8 fields
+        print("Loading npz: %s" % glas_npz_fn)
+        glas_pts = np.load(glas_npz_fn)['arr_0']
+        print("Check # cols of incoming set of GLAS", glas_pts.shape[1])
+
+        print("Doing quality filtering of ICESat-GLAS using standard filtering")
+        glas_pts = glas_qfilt(glas_pts, satndxcol=satndxcol, cldcol=cldcol, FRircol=FRircol, wflencol=wflencol)
+
+        print("Saving quality filtered npz: %s" % glas_npz_qfilt_fn)
+        np.savez_compressed(glas_npz_qfilt_fn, glas_pts)
+    else:
+        #Already quality filtered
+        print("Loading quality filtered npz: %s" % glas_npz_qfilt_fn)
+        glas_pts = np.load(glas_npz_qfilt_fn)['arr_0']
+
+
+if not os.path.exists(glas_qfilt_csv):
+    print("Saving quality filtered csv: %s" % glas_qfilt_csv)
+    np.savetxt(glas_qfilt_csv, glas_pts, header=hdr_out, fmt=fmt_out, delimiter=',', comments='')
 
 dem_fn_list = sys.argv[2:]
+
+print("Check # rows of incoming qfilt set of GLAS", glas_pts.shape[0])
+print("Check # cols of incoming qfilt set of GLAS", glas_pts.shape[1])
 
 for n,dem_fn in enumerate(dem_fn_list):
 
@@ -113,16 +196,16 @@ for n,dem_fn in enumerate(dem_fn_list):
     dem_extent_wgs84 = geolib.ds_extent(dem_ds, t_srs=pt_srs)
     xmin, ymin, xmax, ymax = dem_extent_wgs84
     
-    print("Applying spatial & quality filter") 
+    print("Applying spatial filter") 
     x      = glas_pts[:,xcol]
     y      = glas_pts[:,ycol]
-    satndx = glas_pts[:,satndxcol]
-    cld    = glas_pts[:,cldcol]
-    FRir   = glas_pts[:,FRircol]
-    wflen  = glas_pts[:,wflencol]
+    #satndx = glas_pts[:,satndxcol]
+    #cld    = glas_pts[:,cldcol]
+    #FRir   = glas_pts[:,FRircol]
+    #wflen  = glas_pts[:,wflencol]
 
-    idx = ((x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax) & (satndx < SatNdx_thresh) & (cld < cld1_mswf_thresh) & (FRir == FRir_val) & (wflen < wflen_thresh))
-    #idx = ((x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax))
+    #idx = ((x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax) & (satndx < SatNdx_thresh) & (cld < cld1_mswf_thresh) & (FRir == FRir_val) & (wflen < wflen_thresh))
+    idx = ((x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax))
 
     if idx.nonzero()[0].size == 0:
         print("No points after spatial & quality filtering")
@@ -132,32 +215,14 @@ for n,dem_fn in enumerate(dem_fn_list):
     print("Sampling DEM at masked point locations") 
     glas_pts_fltr = glas_pts[idx]
 
-    #print("Check rows", glas_pts_fltr[0:]) 
-    print("Check row length", glas_pts_fltr.shape[1]) 
+    print("Check # rows", glas_pts_fltr.shape[0]) 
+    print("Check # cols", glas_pts_fltr.shape[1]) 
 
     print("Writing out %i points after spatial filter" % glas_pts_fltr.shape[0]) 
     out_csv_fn = os.path.splitext(dem_fn)[0]+'_%s.csv' % ext
 
-    # dt_ordinal, dt_YYYYMMDD, lat, lon, z_WGS84 
-    fmt = '%0.8f, %i, %0.6f, %0.6f, %0.2f'
-
-    # Old gla14 csv file; before pc_align_prep.sh:
-    # rec_ndx,shotn,date,lat,lon,elev,elev_geoid,elev_ground,rh100,rh50,wflen
-    fmt = '%i, %i, %0.2f, %0.6f, %0.6f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f'
-
-    if glas_pts_fltr.shape[1] == 23:    
-        fmt = '%0.2f, %0.6f, %0.6f, %0.2f, %0.2f, %0.2f'
-        fmt += ', %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f'
-    if glas_pts_fltr.shape[1] == 7:
-        # dt_ordinal, dt_YYYYMMDD, lat, lon, z_WGS84, z_refdem_med_WGS84, z_refdem_nmad
-        fmt += ', %0.2f, %0.2f'
-    elif glas_pts_fltr.shape[1] == 8:
-        # dt_ordinal, dt_YYYYMMDD, lat, lon, z_WGS84, z_refdem_med_WGS84, z_refdem_nmad, lulc
-        fmt += ', %0.2f, %0.2f, %i'
-    elif glas_pts_fltr.shape[1] == 3:
-        # After pc_align_prep.sh: lat, lon, elev_ground
-        fmt = '%0.2f, %0.2f, %i'
-    np.savetxt(out_csv_fn, glas_pts_fltr, fmt=fmt, delimiter=',')
+    print("Writing out CSV of spatial filtered with # cols = %i" % glas_pts_fltr.shape[1] )
+    np.savetxt(out_csv_fn, glas_pts_fltr, header=hdr_out, fmt=fmt_out, delimiter=',', comments='')
 
     x_fltr = glas_pts_fltr[:,xcol]
     y_fltr = glas_pts_fltr[:,ycol]
@@ -212,7 +277,7 @@ for n,dem_fn in enumerate(dem_fn_list):
         #lat,lon,elev_ground for pc_align
         out_csv_fn_mask_asp = os.path.splitext(out_csv_fn)[0]+'_ref_asp.csv'
         #Could add DEM samp columns here
-        np.savetxt(out_csv_fn_mask, glas_pts_fltr_mask, fmt=fmt, delimiter=',')
+        np.savetxt(out_csv_fn_mask, glas_pts_fltr_mask, header=hdr_out, fmt=fmt_out, delimiter=',', comments='')
         np.savetxt(out_csv_fn_mask_asp, glas_pts_fltr_mask_asp, fmt='%0.6f, %0.6f, %0.2f', delimiter=',')
 
     x_fltr_mask = glas_pts_fltr_mask[:,xcol]
@@ -225,7 +290,7 @@ for n,dem_fn in enumerate(dem_fn_list):
 
     dz = z_fltr_mask - samp[samp_idx,0]
 
-    if False:
+    if True:
         print "Creating plot of %i output points" % x_fltr.shape[0]
         fig_kw = {'figsize':(10,7.5)}
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, sharex=True, sharey=True, **fig_kw)
