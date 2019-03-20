@@ -351,21 +351,21 @@ for n,dem_fn in enumerate(dem_fn_list):
         im1 = ax1.imshow(dem_ma, cmap=cpt_rainbow, clim=dem_clim, alpha=0.5)
         cbar = pltlib.add_cbar(ax1, im1, label='DEM Elev. (m WGS84)')
 
-        #Plot all color points over shaded relief
+        #Plot all points in extent over shaded relief; overplot coreg points
         im2 = ax2.imshow(hs_ma, cmap='gray', clim=hs_clim, alpha=0.5)
         #Plot all points in black
         sc2 = ax2.scatter(pX_fltr, pY_fltr, s=0.5, c='k', edgecolors='none')
         #Plot valid for co-reg in color
-        sc2 = ax2.scatter(pX_fltr_mask_coreg, pY_fltr_mask_coreg, s=0.5, c=z_fltr_mask_coreg, cmap=cpt_rainbow, vmin=dem_clim[0], vmax=dem_clim[1], edgecolors='none')
-        cbar = pltlib.add_cbar(ax2, sc2, label='Pt Elev. (m WGS84)')
+        sc2 = ax2.scatter(pX_fltr_mask_coreg, pY_fltr_mask_coreg, s=3, c=z_fltr_mask_coreg, cmap=cpt_rainbow, vmin=dem_clim[0], vmax=dem_clim[1], edgecolors='none')
+        cbar = pltlib.add_cbar(ax2, sc2, label='ICESat-GLAS Elev. (m WGS84)')
 
-        #Plot valid surface points over shaded relief
+        #Plot valid surface points over shaded relief; overplot coreg points
         im3 = ax3.imshow(hs_ma, cmap='gray', clim=hs_clim, alpha=0.5)
         #Plot valid surface points in black
         sc3 = ax3.scatter(pX_fltr_mask_valsurf, pY_fltr_mask_valsurf, s=0.5, c='k', edgecolors='none')
         #Plot valid for co-reg in color
-        sc3 = ax3.scatter(pX_fltr_mask_coreg, pY_fltr_mask_coreg, s=0.5, c=z_fltr_mask_coreg, cmap=cpt_rainbow, vmin=dem_clim[0], vmax=dem_clim[1], edgecolors='none')
-        cbar = pltlib.add_cbar(ax3, sc3, label='Pt Elev. (m WGS84)')
+        sc3 = ax3.scatter(pX_fltr_mask_coreg, pY_fltr_mask_coreg, s=3, c=z_fltr_mask_coreg, cmap=cpt_rainbow, vmin=dem_clim[0], vmax=dem_clim[1], edgecolors='none')
+        cbar = pltlib.add_cbar(ax3, sc3, label='ICESat-GLAS Elev. (m WGS84)')
 
         #Plot time
         ##c = glas_pts_fltr[:,tcol]
