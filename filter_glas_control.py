@@ -47,7 +47,7 @@ def glas_qfilt(glas_pts, satndxcol=14, cldcol=17, FRircol=18, wflencol=25):
     FRir   = glas_pts[:,FRircol]
     wflen  = glas_pts[:,wflencol]
 
-    idx = ((satndx < SatNdx_thresh) & (cld < cld1_mswf_thresh) & (FRir == FRir_val) & (wflen < wflen_thresh))
+    idx = ((satndx < SatNdx_thresh) & (cld < cld1_mswf_thresh) & (FRir == FRir_val) ) # & (wflen < wflen_thresh))
     glas_pts = glas_pts[idx]
 
     return glas_pts
@@ -55,7 +55,6 @@ def glas_qfilt(glas_pts, satndxcol=14, cldcol=17, FRircol=18, wflencol=25):
 def get_raster_idx(x_vect, y_vect, pt_srs, ras_ds, max_slope=20):
     """Get raster index corresponding to the set of X,Y locations
     """
-    print("Get raster index of %s" % ras_ds)
     #Convert input xy coordinates to raster coordinates
     mX_fltr, mY_fltr, mZ = geolib.cT_helper(x_vect, y_vect, 0, pt_srs, geolib.get_ds_srs(ras_ds))
     pX_fltr, pY_fltr = geolib.mapToPixel(mX_fltr, mY_fltr, ras_ds.GetGeoTransform())
@@ -129,7 +128,7 @@ hdr_filt_list = hdr_full_list[mincol:maxcol+1]
 # Cut down hdr and fmt lists accordingly
 hdr_filt_list = hdr_full_list[mincol:maxcol + 1]
 fmt_filt_list = fmt_full_list[mincol:maxcol + 1]
-print("Hdr filt list: ", hdr_filt_list)
+#print("Hdr filt list: ", hdr_filt_list)
 
 tcol = hdr_filt_list.index('date')
 xcol = hdr_filt_list.index('lon')         #lon
@@ -246,7 +245,7 @@ for n,dem_fn in enumerate(dem_fn_list):
     print("Check # rows", glas_pts_fltr.shape[0])
     print("Check # cols", glas_pts_fltr.shape[1])
 
-    print("Writing out %i points after spatial filter" % glas_pts_fltr.shape[0])
+    print("Writing out %i of ICESat-GLAS shots after spatial filter" % glas_pts_fltr.shape[0])
     out_csv_fn = os.path.splitext(dem_fn)[0]+'_%s.csv' % ext
 
     print("Writing out CSV of spatial filtered with # cols = %i" % glas_pts_fltr.shape[1] )
@@ -266,7 +265,7 @@ for n,dem_fn in enumerate(dem_fn_list):
         print("Loading 'control' DEM (masked for co-reg): %s" % dem_mask_fn)
         dem_mask_ds = gdal.Open(dem_mask_fn)
         dem_mask = iolib.ds_getma(dem_mask_ds)
-        print("Loading 'chm mask' DEM (masked for zonal stats of all valid surfaces): %s" % dem_mask_fn)
+        print("Loading 'chm mask' DEM (masked for zonal stats of all valid surfaces): %s" % dem_chmmask_fn)
         dem_chmmask_ds = gdal.Open(dem_chmmask_fn)
     else:
         # Create mask here; INCOMPLETE; dont know how to specify flags (eg '--no-toamask') in call below
@@ -274,19 +273,7 @@ for n,dem_fn in enumerate(dem_fn_list):
         dem_mask_ds = dem_ds
         dem_mask = dem_ma
 
-
-    # Get index of raster pixels that match quality-filtered ICESat-GLAS
-    #Convert input xy coordinates to raster coordinates
-    ##mX_fltr, mY_fltr, mZ = geolib.cT_helper(x_fltr, y_fltr, 0, pt_srs, geolib.get_ds_srs(dem_mask_ds))
-    ##pX_fltr, pY_fltr = geolib.mapToPixel(mX_fltr, mY_fltr, dem_mask_ds.GetGeoTransform())
-    ##pX_fltr = np.atleast_1d(pX_fltr)
-    ##pY_fltr = np.atleast_1d(pY_fltr)
-    #Sample raster
-    #This returns median and mad for ICESat footprint
-    ##coreg_samp = geolib.sample(dem_mask_ds, mX_fltr, mY_fltr, pad=pad)
-    ##coreg_samp_idx = ~(np.ma.getmaskarray(coreg_samp[:,0]))
-    ##npts = coreg_samp_idx.nonzero()[0].size
-
+    # Run function to get index of raster pixels that match quality-filtered ICESat-GLAS
     coreg_samp, coreg_samp_idx, npts, pX_fltr, pY_fltr = get_raster_idx(x_fltr, y_fltr, pt_srs, dem_mask_ds, max_slope=max_slope)
     chm_samp, chm_samp_idx, npts_chm, pX_fltr_chm, pY_fltr_chm = get_raster_idx(x_fltr, y_fltr, pt_srs, dem_chmmask_ds, max_slope=max_slope)
 
@@ -307,9 +294,14 @@ for n,dem_fn in enumerate(dem_fn_list):
 
     # Valid Surface Set: valid pixels of any ground and canopy surface
     glas_pts_fltr_valsurf = glas_pts_fltr[chm_samp_idx]
+    print("Check # of ICESat-GLAS shots for valid surfaces", glas_pts_fltr_valsurf.shape[0])
+    print("Writing out %i ICESat-GLAS shots for valid surfaces" % glas_pts_fltr_valsurf.shape[0])
+    out_csv_valsurf_fn = os.path.splitext(dem_fn)[0]+'_%s_validsurfs.csv' % ext
+    print("Writing out CSV of of ICESat-GLAS shots for valid surfaces with # cols = %i" % glas_pts_fltr_valsurf.shape[1] )
+    np.savetxt(out_csv_valsurf_fn, glas_pts_fltr_valsurf, header=hdr_out, fmt=fmt_out, delimiter=',', comments='')
 
     if os.path.exists(dem_mask_fn):
-        print("Writing out %i points after mask" % glas_pts_fltr_coreg.shape[0])
+        print("Writing out %i ICESat-GLAS shots for co-registration" % glas_pts_fltr_coreg.shape[0])
         out_csv_fn_coreg = os.path.splitext(out_csv_fn)[0]+'_ref.csv'
         #lat,lon,elev_ground for pc_align
         out_csv_fn_coreg_asp = os.path.splitext(out_csv_fn)[0]+'_ref_asp.csv'
@@ -344,6 +336,7 @@ for n,dem_fn in enumerate(dem_fn_list):
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, sharex=True, sharey=True, **fig_kw)
 
         #Plot DEM color shaded relief
+        #
         hs_ma = geolib.gdaldem_wrapper(dem_fn)
         hs_clim = malib.calcperc(hs_ma, perc=(0.5, 99.5))
         dem_clim = malib.calcperc(dem_ma)
@@ -352,14 +345,30 @@ for n,dem_fn in enumerate(dem_fn_list):
         cbar = pltlib.add_cbar(ax1, im1, label='DEM Elev. (m WGS84)')
 
         #Plot all points in extent over shaded relief; overplot coreg points
-        im2 = ax2.imshow(hs_ma, cmap='gray', clim=hs_clim, alpha=0.5)
+        #
+        ax2.imshow(hs_ma, cmap='gray', clim=hs_clim, alpha=0.5)
+        # Show 4m ortho
+        toa_fn = dem_control.get_toa_fn(dem_fn)
+        print("Loading TOA ortho: %s" % toa_fn)
+        toa_ds = gdal.Open(toa_fn)
+        toa_ma = iolib.ds_getma(toa_ds)
+        toa_clim = malib.calcperc(toa_ma, perc=(0.5, 99.5))
+        im2 = ax2.imshow(toa_ma, cmap='gray', clim=toa_clim, alpha=1)
+        # Show roughmask (should be called 'controlmask' which shows control surfaces
+        #dem_roughmask_fn = os.path.splitext(dem_fn)[0]+'_roughmask.tif'
+        #dem_roughmask_ds = gdal.Open(dem_roughmask_fn)
+        #dem_roughmask_ma = iolib.ds_getma(dem_roughmask_ds)
+        #dem_chmmask_ma = iolib.ds_getma(dem_chmmask_ds)
+        #im2 = ax2.imshow(dem_chmmask_ma, cmap='Dark2', clim=malib.calcperc(dem_chmmask_ma), alpha=0.5)
+        #im2 = ax2.imshow(dem_roughmask_ma, cmap='gray', clim=malib.calcperc(dem_roughmask_ma), alpha=1)
         #Plot all points in black
-        sc2 = ax2.scatter(pX_fltr, pY_fltr, s=0.5, c='k', edgecolors='none')
+        sc2 = ax2.scatter(pX_fltr, pY_fltr, s=0.25, c='k', edgecolors='#66bd63')
         #Plot valid for co-reg in color
-        sc2 = ax2.scatter(pX_fltr_mask_coreg, pY_fltr_mask_coreg, s=3, c=z_fltr_mask_coreg, cmap=cpt_rainbow, vmin=dem_clim[0], vmax=dem_clim[1], edgecolors='none')
-        cbar = pltlib.add_cbar(ax2, sc2, label='ICESat-GLAS Elev. (m WGS84)')
+        ##sc2 = ax2.scatter(pX_fltr_mask_coreg, pY_fltr_mask_coreg, s=3, c=z_fltr_mask_coreg, cmap=cpt_rainbow, vmin=dem_clim[0], vmax=dem_clim[1], edgecolors='none')
+        ##cbar = pltlib.add_cbar(ax2, sc2, label='ICESat-GLAS Elev. (m WGS84)')
 
         #Plot valid surface points over shaded relief; overplot coreg points
+        #
         im3 = ax3.imshow(hs_ma, cmap='gray', clim=hs_clim, alpha=0.5)
         #Plot valid surface points in black
         sc3 = ax3.scatter(pX_fltr_mask_valsurf, pY_fltr_mask_valsurf, s=0.5, c='k', edgecolors='none')
@@ -380,13 +389,14 @@ for n,dem_fn in enumerate(dem_fn_list):
         ##cbar = pltlib.add_cbar(ax3, sc3, label='Pt Year')
 
         #Plot dz
+        #
         c = dz
         vmin, vmax = malib.calcperc(c, perc=(5, 95))
         absmax = np.max(np.abs([vmin, vmax]))
         vmin = -absmax
         vmax = absmax
         im4 = ax4.imshow(hs_ma, cmap='gray', clim=hs_clim, alpha=0.5)
-        sc4 = ax4.scatter(pX_fltr_mask_coreg, pY_fltr_mask_coreg, s=3, c=c, cmap='RdYlBu', vmin=vmin, vmax=vmax, edgecolors='none') 
+        sc4 = ax4.scatter(pX_fltr_mask_coreg, pY_fltr_mask_coreg, s=3, c=c, cmap='RdYlBu', vmin=vmin, vmax=vmax, edgecolors='none')
         cbar = pltlib.add_cbar(ax4, sc4, label='ICESat-GLAS - DEM (m)')
 
         for ax in (ax1, ax2, ax3, ax4):
@@ -394,7 +404,7 @@ for n,dem_fn in enumerate(dem_fn_list):
             ax.yaxis.set_visible(False)
             ax.set_aspect('equal', 'box-forced')
 
-        title='%s \n %i initial ICESat-GLAS footprints, %i for valid surfaces, %i for co-registration' % ( pairname + ' (' + os.path.split(dem_fn)[1] +')', pX_fltr.shape[0], pX_fltr_mask_valsurf.shape[0], pX_fltr_mask_coreg.shape[0])
+        title='%s \n %i quality-filtered ICESat-GLAS shots, %i for valid surfaces, %i for co-registration' % ( pairname + ' (' + os.path.split(dem_fn)[1] +')', pX_fltr.shape[0], pX_fltr_mask_valsurf.shape[0], pX_fltr_mask_coreg.shape[0])
         fig.suptitle(title)
         fig.tight_layout()
         #This adjusts subplots to fit suptitle
