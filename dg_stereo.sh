@@ -27,8 +27,8 @@ function gettag() {
 }
 host=`/bin/hostname -s`
 
-#Hardcoded Args (SGM testing)
-tile_size=3000
+#Hardcoded Args (SGM testing) unless overridden in a TEST below
+tile_size=3500
 if [[ "$host" == *"crane"* ]] ; then
     tile_size=4000
 fi
@@ -59,7 +59,7 @@ corr_kern=${13:-21}
 # 300 is default; increase for more difficult areas.
 corr_time=${14:-800}
 
- # Optional args: needed for wrangle process
+# Optional args: needed for wrangle process
 out_root_arg=${15:-''}
 QUERY=${16:-'true'}
 
@@ -72,9 +72,10 @@ fi
 
 if [ "$TEST" = true ]; then
     # Optional Args (stereogrammetry testing)
-    crop=${17}    #"0 190000 40000 40000"
-    #sa=${18}	   #if sgm is true, then use 1 for sgm or 2 for mgm
-    #cm=${19}      #cost mode for stereo
+    crop=${18:-''}    #"0 190000 40000 40000"
+    tile_size=${19:-3000}
+    #sa=${19}	   #if sgm is true, then use 1 for sgm or 2 for mgm
+    #cm=${20}      #cost mode for stereo
 fi
 
 # Set and create out_root
@@ -111,7 +112,7 @@ nlogical_cores=$((nthread_core * ncore_cpu * ncpu ))
 nlogical_cores_use=$nlogical_cores
 
 if [[ "$host" == *"borg"* ]] ; then
-    nlogical_cores_use=$((nlogical_cores - 10))
+    nlogical_cores_use=$((nlogical_cores - 11))
 fi
 if [[ "$host" == *"crane"* ]] ; then
     nlogical_cores_use=$((nlogical_cores - 1))
