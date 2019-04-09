@@ -94,6 +94,8 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
     # ASPdir is (/att/nobackup/mwooten3/AIST/TTE/ASP)
     # baseDir is one level up (os.path.dirname(ASPdir.rstrip('/') = /att/nobackup/mwooten3/AIST/TTE/)
 
+    if batchID.startswith('batch'): batchID = batchID.replace('batch', '')
+
     # set variables using CL args
     doP2D = not noP2D # doP2D is the opposite of noP2D
     DEMdir = '/att/pubrepo/ASTERGDEM/'
