@@ -485,7 +485,7 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
             time_limit = '6-00:00:00'
             if sensor == 'WV03': time_limit = '8-00:00:00'
             num_nodes = '1'
-            python_script_args = 'python {} {} {} {} {} {} {} {} {} {}'.format(os.path.join(DISCdir, 'code', 'evhr', workflowCodeName), pairname, batchID, os.path.join(DISCdir, 'ASP'), preLogTextFile_DISC, SGM, subpixKern, erodeSize, corrKern, corrTime)
+            python_script_args = 'python {} {} {} {} {} {} {} {} {} {}'.format(os.path.join(DISCdir, 'code', 'evhr', workflowCodeName), pairname, batchID, os.path.join(DISCdir, 'ASP'), preLogTextFile_DISC, str(SGM).lower(), subpixKern, erodeSize, corrKern, corrTime)
             #print python_script_args #T
 
             # slurm.j file (calls the python code in discover for just one pair)
