@@ -49,7 +49,7 @@ def find_elapsed_time(start, end):
 def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCopyPair, SGM): # outAttributes will have as many outAttributes as are known at the time but with 'filler' in the last columm, which will be replaced with approporate reason before getting written to csv
 
     if SGM:
-        checkDir = '/att/pubrepo/DEM/hrsi_dsm/v2/'
+        checkDir = '/att/pubrepo/DEM/hrsi_dsm_v2/'
     else: checkDir = '/att/pubrepo/DEM/hrsi_dsm/'
 
     alreadyProcessed = False # this starts at False and gets set to true if the pair was already processed
