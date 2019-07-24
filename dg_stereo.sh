@@ -69,14 +69,18 @@ PPRC=${17:-'false'}
 if [ "$ADAPT" = false ]; then
     TEST=false
 fi
-
+script_call="${0} ${1} ${2} ${3} ${4} ${5} ${6} ${7} ${8} ${9} ${10} ${11} ${12} ${13} ${14} ${15} ${16} ${17}"
 if [ "$TEST" = true ]; then
     # Optional Args (stereogrammetry testing)
     crop=${18:-''}    #"0 190000 40000 40000"
     tile_size=${19:-3000}
     #sa=${19}	   #if sgm is true, then use 1 for sgm or 2 for mgm
     #cm=${20}      #cost mode for stereo
+    script_call+=" ${18} ${19}"
 fi
+
+echo; echo "Script call:"
+echo $script_call ; echo
 
 # Set and create out_root
 if [ "$ADAPT" = true ]; then
@@ -112,16 +116,13 @@ nlogical_cores=$((nthread_core * ncore_cpu * ncpu ))
 nlogical_cores_use=$nlogical_cores
 
 if [[ "$host" == *"borg"* ]] ; then
-    nlogical_cores_use=$((nlogical_cores - 11))
+    nlogical_cores_use=$((nlogical_cores - 12))
 fi
 if [[ "$host" == *"crane"* ]] ; then
     nlogical_cores_use=$((nlogical_cores - 1))
 fi
 if [[ "$host" == *"ecotone"* ]] || [[ "$host" == *"himat"* ]] ; then
-    nlogical_cores_use=$((nlogical_cores - 4))
-    if [[ "$host" == "ecotone10" ]] || [[ "$host" == "ecotone06" ]] ; then
-        nlogical_cores_use=$nlogical_cores
-    fi
+    nlogical_cores_use=$((nlogical_cores - 5))
 fi
 
 echo
@@ -274,11 +275,14 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
             map_opts+=" --tr $native_res"
             outext="${outext}_${native_res}m"
         fi
-        echo "Projection used for initial alignment of stereopairs:"
+        echo; echo "Projection used for initial alignment of stereopairs:"
         echo $proj_rpcdem
-        echo "Computing intersection extent in projected coordinates:"
+        echo; echo "Computing intersection extent in projected coordinates:"
         map_extent=$(dg_stereo_int.py $in_left_xml $in_right_xml "$proj_rpcdem")
-        if [ -z $map_extent ] ; then echo "dg_stereo_int.py failed. Exiting." ; exit 1 ; fi
+        if [ -z $map_extent ] ; then
+            echo "dg_stereo_int.py failed. Exiting."
+            exit 1
+        fi
         echo $map_extent; echo
 
         for in_img in $in_left $in_right; do
