@@ -27,6 +27,20 @@ matplotlib.use('Agg')
 import matplotlib.pyplot, matplotlib.mlab, math
 import scipy.stats
 
+#LiDAR %Canopy Cover Threshold Mask
+
+#LiDAR CHM Height Threshold Mask
+def get_lidar_mask(dem_ds, lidar_ds, max_thresh):
+    print("Applying ground mask using Lidar CHM values > %0.4f)" % max_thresh)
+    #If you want to feed in the file
+    #chm_ds=warplib.memwarp_multi_fn([chm_file,], res=dem_ds, extent=dem_ds, t_srs=dem_ds)[0]
+    
+    lidar_array=iolib.ds_getma(lidar_ds)
+    lidar_mask = np.ma.masked_greater(lidar_array, max_thresh)
+    
+    lidar_mask= ~(np.ma.getmaskarray(lidar_mask))
+    return lidar_mask
+
 #TOA Terrain Ruggedness masked
 def get_tri_mask(dem_ds, min_tri):
     print("Applying TRI filter (masking smooth values < %0.4f)" % min_tri)
@@ -201,6 +215,10 @@ def getparser():
     parser.set_defaults(toatrimask=True)
     parser.add_argument('--no-slopemask', dest='slopemask', action='store_false', help='Turn slope masking off')
     parser.set_defaults(slopemask=True)
+    parser.add_argument('-lidar_fn', type=str, default=None, help='Path to the LiDAR dataset to be used to mask for ground(CHM or %Canopy) (default: %(default)s)')
+    parser.add_argument('-max_thresh', type=float, default=None, help='Max Value of LiDAR dateset to be considered a ground pixel (e.g. 0.8m or 20 (%)) (default: %(default)s)')
+
+
     #parser.add_argument('--no-slopemask-coarse', dest='slopemaskcoarse', action='store_false', help='Turn coarse slope masking off')
     #parser.set_defaults(slopemaskcoarse=True)
     return parser
@@ -220,6 +238,10 @@ def main():
     #Basename for output files
     out_fn_base = os.path.splitext(dem_fn)[0]
 
+    #Max Threshold value for LiDAR datset; Valid pixels under this value
+    lidar_fn=args.lidar_fn
+    max_thresh=args.max_thresh
+    
     #Need some checks on these
     param = args.filt_param
     if param is not None and len(param) == 1:
@@ -235,6 +257,7 @@ def main():
     rough_mask = None
     slope_mask = None
     mask_list = [toa_tri_mask, toa_mask, rough_mask, slope_mask]
+    
 
     if args.filtdz:
         print("\nFilter with dz from ref DEM to remove cloud returns and blunders (shadows)...")
@@ -339,6 +362,23 @@ def main():
             out_fn = out_fn_base+'_slopemask.tif'
             print("Writing out %s\n" % out_fn)
             iolib.writeGTiff(slope_mask, out_fn, src_ds=dem_ds)
+            
+    if args.lidar_fn:
+        try:
+            print("Masking DEM file based on Lidar Dataset\n")
+            print("\nWarp Lidar Raster to DEM...\n")
+            lidar_ds=warplib.memwarp_multi_fn([lidar_fn,],r='near', res=dem_ds, extent=dem_ds, t_srs=dem_ds)[0]
+            
+            lidar_mask = get_lidar_mask(dem_ds, lidar_ds, max_thresh)
+            
+            controlmask = np.logical_and(lidar_mask, controlmask)
+            
+            if writeall:
+                out_fn=out_fn_base+'_lidar_mask.tif'
+                print("Writing out %s\n" % out_fn)
+                iolib.writeGTiff(lidar_mask, out_fn, src_ds=dem_ds)
+        except Exception, e:
+            print "\tFailed to Apply Lidar Mask"
 
     # CHM mask will be a subset of the Control mask; slope_mask, toa_mask, toa_tri_mask
     chmmask = controlmask
@@ -354,6 +394,8 @@ def main():
             out_fn = out_fn_base+'_roughmask.tif'
             print("Writing out %s\n" % out_fn)
             iolib.writeGTiff(rough_mask, out_fn, src_ds=dem_ds)
+            
+    
 
     print("Generating final mask to use for reference surfaces, and applying to input DEM")
     #Now invert to use to create final masked array
@@ -364,8 +406,14 @@ def main():
         niter = args.dilate_con
         print("Dilating control mask with %i iterations" % niter)
         from scipy import ndimage
-        controlmask = ~(ndimage.morphology.binary_dilation(~controlmask, iterations=niter))
-
+        controlmask = ~(ndimage.morphology.binary_erosion(~controlmask, iterations=niter))
+    
+    if writeall:
+        out_fn=out_fn_base+'_finalmask.tif'
+        print("Writing out %s\n" % out_fn)
+        iolib.writeGTiff(controlmask,out_fn,src_ds=dem_ds)
+    
+    
     #Apply mask to original DEM - use these surfaces for co-registration
     newdem = np.ma.array(dem, mask=controlmask)
 
