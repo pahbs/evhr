@@ -73,7 +73,7 @@ def main():
                         # shutil.Error: ... are the same file
     			        # Just copy over the xmls, instead of creating a symlink to them
                         shutil.copy2(os.path.splitext(selected[i][0])[0]+'.xml', out_dir)
-                    except Exception, e:
+                    except Exception as e:
                         force_symlink( os.path.splitext(selected[i][0])[0]+'.xml', os.path.join(out_dir, os.path.splitext(filename)[0]+'.xml') )
 
             #return(imglist)
