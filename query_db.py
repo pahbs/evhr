@@ -49,7 +49,7 @@ def find_elapsed_time(start, end):
 def check_pairname_continue(pairname, imageDir, job_script, preLogText, alwaysCopyPair, SGM): # outAttributes will have as many outAttributes as are known at the time but with 'filler' in the last columm, which will be replaced with approporate reason before getting written to csv
 
     if SGM:
-        checkDir = '/att/pubrepo/DEM/hrsi_dsm/v2/'
+        checkDir = '/att/pubrepo/DEM/hrsi_dsm_v2/'
     else: checkDir = '/att/pubrepo/DEM/hrsi_dsm/'
 
     alreadyProcessed = False # this starts at False and gets set to true if the pair was already processed
@@ -93,6 +93,8 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
     baseDir = os.path.dirname(ASPdir.rstrip('/'))
     # ASPdir is (/att/nobackup/mwooten3/AIST/TTE/ASP)
     # baseDir is one level up (os.path.dirname(ASPdir.rstrip('/') = /att/nobackup/mwooten3/AIST/TTE/)
+
+    if batchID.startswith('batch'): batchID = batchID.replace('batch', '')
 
     # set variables using CL args
     doP2D = not noP2D # doP2D is the opposite of noP2D
@@ -483,7 +485,7 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
             time_limit = '6-00:00:00'
             if sensor == 'WV03': time_limit = '8-00:00:00'
             num_nodes = '1'
-            python_script_args = 'python {} {} {} {} {} {} {} {} {} {}'.format(os.path.join(DISCdir, 'code', 'evhr', workflowCodeName), pairname, batchID, os.path.join(DISCdir, 'ASP'), preLogTextFile_DISC, SGM, subpixKern, erodeSize, corrKern, corrTime)
+            python_script_args = 'python {} {} {} {} {} {} {} {} {} {}'.format(os.path.join(DISCdir, 'code', 'evhr', workflowCodeName), pairname, batchID, os.path.join(DISCdir, 'ASP'), preLogTextFile_DISC, str(SGM).lower(), subpixKern, erodeSize, corrKern, corrTime)
             #print python_script_args #T
 
             # slurm.j file (calls the python code in discover for just one pair)
