@@ -37,15 +37,16 @@ def get_lidar_mask(dem_ds, lidar_ds, max_thresh):
     print("Applying ground mask using Lidar CHM values > %0.4f)" % max_thresh)
     #If you want to feed in the file
     #chm_ds=warplib.memwarp_multi_fn([chm_file,], res=dem_ds, extent=dem_ds, t_srs=dem_ds)[0]
-    
+
     lidar_array=iolib.ds_getma(lidar_ds)
     lidar_mask = np.ma.masked_greater(lidar_array, max_thresh)
-    
+
     lidar_mask= ~(np.ma.getmaskarray(lidar_mask))
     return lidar_mask
 
 #TOA Terrain Ruggedness masked
 def get_tri_mask(dem_ds, min_tri):
+    # TRI is the mean difference between a central pixel and its surrounding cells (see Wilson et al 2007, Marine Geodesy 30:3-35).
     print("\nApplying TRI filter (masking smooth values < %0.4f)" % min_tri)
     #dem = iolib.ds_getma(dem_ds)
     tri = geolib.gdaldem_mem_ds(dem_ds, 'TRI', returnma=True)
@@ -56,6 +57,7 @@ def get_tri_mask(dem_ds, min_tri):
 
 #DEM roughness mask
 def get_rough_mask(dem_ds, max_rough):
+    # Roughness is the largest inter-cell difference of a central pixel and its surrounding cell, as defined in Wilson et al (2007, Marine Geodesy 30:3-35).
     print("\nApplying DEM roughness filter (masking values > %0.4f)" % max_rough)
     #dem = iolib.ds_getma(dem_ds)
     rough = geolib.gdaldem_mem_ds(dem_ds, 'Roughness', returnma=True)
@@ -233,12 +235,13 @@ def getparser():
     parser.set_defaults(toatrimask=True)
     parser.add_argument('--no-slopemask', dest='slopemask', action='store_false', help='Turn slope masking off')
     parser.set_defaults(slopemask=True)
+    #parser.add_argument('--no-slopemask-coarse', dest='slopemaskcoarse', action='store_false', help='Turn coarse slope masking off')
+    #parser.set_defaults(slopemaskcoarse=True)
+    parser.add_argument('--no-auto_min_toa', dest='auto_min_toa', action='store_false', help='Turn off auto-compute min TOA using gaussian mixture model')
+    parser.set_defaults(auto_min_toa=True)
     parser.add_argument('-lidar_fn', type=str, default=None, help='Path to the LiDAR dataset to be used to mask for ground(CHM or %Canopy) (default: %(default)s)')
     parser.add_argument('-max_thresh', type=float, default=None, help='Max Value of LiDAR dateset to be considered a ground pixel (e.g. 0.8m or 20 (%)) (default: %(default)s)')
 
-
-    #parser.add_argument('--no-slopemask-coarse', dest='slopemaskcoarse', action='store_false', help='Turn coarse slope masking off')
-    #parser.set_defaults(slopemaskcoarse=True)
     return parser
 
 def main():
@@ -251,7 +254,7 @@ def main():
     writeall = True
 
     # Auto compute min TOA with gaussian mixture model
-    compute_min_toa = True
+    auto_min_toa = args.auto_min_toa
 
     dirname, demname = os.path.split(dem_fn)
 
@@ -285,7 +288,7 @@ def main():
     #Max Threshold value for LiDAR datset; Valid pixels under this value
     lidar_fn=args.lidar_fn
     max_thresh=args.max_thresh
-    
+
     #Need some checks on these
     param = args.filt_param
     if param is not None and len(param) == 1:
@@ -301,7 +304,6 @@ def main():
     rough_mask = None
     slope_mask = None
     mask_list = [toa_tri_mask, toa_mask, rough_mask, slope_mask]
-    
 
     if args.filtdz:
         print("\nFilter with dz from ref DEM to remove cloud returns and blunders (shadows)...")
@@ -339,13 +341,14 @@ def main():
         #try:
             print("\nCompute TOA from ortho...\n")
             toa_fn = get_toa_fn(out_fn_base + '.tif') ##--->dem_fn
-            print("\nWarp TOA to DEM...\n")
             print(toa_fn)
+            print("\nWarp TOA to DEM...\n")
+
             toa_ds = warplib.memwarp_multi_fn([toa_fn,], res=dem_ds, extent=dem_ds, t_srs=dem_ds)[0]
 
             if args.toamask:
 
-                if compute_min_toa:
+                if auto_min_toa:
 
                     # Compute a good min TOA value
                     m,s = get_min_gaus(toa_fn, 50, 4)
@@ -411,21 +414,21 @@ def main():
             out_fn = os.path.join(out_fn_base +'_slopemask.tif')
             print("Writing out %s\n" % out_fn)
             iolib.writeGTiff(slope_mask, out_fn, src_ds=dem_ds)
-            
+
     if args.lidar_fn:
         try:
             print("Masking DEM file based on Lidar Dataset\n")
             print("\nWarp Lidar Raster to DEM...\n")
             lidar_ds=warplib.memwarp_multi_fn([lidar_fn,],r='near', res=dem_ds, extent=dem_ds, t_srs=dem_ds)[0]
-            
-            lidar_mask = get_lidar_mask(dem_ds, lidar_ds, max_thresh)
-            
-            controlmask = np.logical_and(lidar_mask, controlmask)
-            
+
+            lidarmask = get_lidar_mask(dem_ds, lidar_ds, max_thresh)
+
+            controlmask = np.logical_and(lidarmask, controlmask)
+
             if writeall:
-                out_fn=out_fn_base+'_lidar_mask.tif'
+                out_fn=out_fn_base+'_lidarmask.tif'
                 print("Writing out %s\n" % out_fn)
-                iolib.writeGTiff(lidar_mask, out_fn, src_ds=dem_ds)
+                iolib.writeGTiff(lidarmask, out_fn, src_ds=dem_ds)
         except Exception, e:
             print "\tFailed to Apply Lidar Mask"
 
@@ -438,18 +441,19 @@ def main():
     iolib.writeGTiff(chmmask, out_fn, src_ds=dem_ds)
 
     if args.roughmask:
+
         rough_mask = get_rough_mask(dem_ds, args.max_rough)
         controlmask = np.logical_and(rough_mask, controlmask)
+
         if writeall:
-            #out_fn = out_fn_base+'_controlmask.tif'
-            out_fn = os.path.join(out_fn_base +'_controlmask.tif')
+            out_fn = os.path.join(out_fn_base +'_roughmask.tif')
             print("Writing out %s\n" % out_fn)
             iolib.writeGTiff(rough_mask, out_fn, src_ds=dem_ds)
-            
-    
 
     print("Generating final mask to use for reference surfaces, and applying to input DEM")
+
     #Now invert to use to create final masked array
+    # This steps results in the areas to be removed being set to a valid value
     controlmask = ~controlmask
 
     #Dilate the mask
@@ -457,19 +461,15 @@ def main():
         niter = args.dilate_con
         print("Dilating control mask with %i iterations" % niter)
         from scipy import ndimage
-        controlmask = ~(ndimage.morphology.binary_erosion(~controlmask, iterations=niter))
-    
-    if writeall:
-        out_fn=out_fn_base+'_finalmask.tif'
-        print("Writing out %s\n" % out_fn)
-        iolib.writeGTiff(controlmask,out_fn,src_ds=dem_ds)
-    
-    
-    #Apply mask to original DEM - use these surfaces for co-registration
-    newdem = np.ma.array(dem, mask=controlmask)
+        #
+        # So, this should work too.... controlmask = ndimage.morphology.binary_dilation(controlmask, iterations=niter))
+        controlmask = ~(ndimage.morphology.binary_dilation(~controlmask, iterations=niter)) # This steps results in the areas to be removed being set to a valid value, again
+
+    print("\nApply mask to original DEM - use these control surfaces for co-registration...")
+    newdem = np.ma.array(dem, mask=controlmask) # This sets the valid values of the controlmask to the 'mask' of the DEM, which turns them into NaN values
 
     if True:
-        print("\nStats of valid DEM with maskes applied:")
+        print("\nStats of valid DEM with masks applied:")
         valid_stats = malib.print_stats(newdem)
         valid_stats_med = valid_stats[5]
 
