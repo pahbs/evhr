@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# DEM Workflow: wv_correct, mosaic, mapproject, stereo, point2dem, hillshades, & orthoimages for individual stereopairs on DISCOVER & ADAPT
-# paul montesano, david shean, maggie wooten, christopher neigh
+# DEM Workflow: wv_correct, dg_mosaic, mapproject, stereo, point2dem, hillshades, & orthoimages for individual stereopairs on DISCOVER & ADAPT
+# paul montesano, david shean (original versions of workflow shell wrappers of ASP routines), maggie wooten, christopher neigh
 #
 # example of call on DISCOVER:
 #     dg_stereo.sh $pairname false
@@ -17,6 +17,12 @@
 #   dg_stereo_int.py        calcs the intersection between to images
 #   warptool.py             performs warping and resampling of mutiple input
 #
+
+# NOTES on input data:
+# 	Must start with sensor code (eg, WV03) (ntfmos.sh looks for this)
+# 	Must have catIDs in name (dg_mosaic looks for catIDs)
+# 	Must use lower case for .xml and .ntf (dg_mosaic)
+# 	Must have P1BS in names
 
 t_start=$(date +%s)
 
@@ -68,12 +74,17 @@ fi
     
 script_call="${0} ${1} ${2} ${3} ${4} ${5} ${6} ${7} ${8} ${9} ${10} ${11} ${12} ${13} ${14} ${15} ${16} ${17}"
 if [ "$TEST" = true ]; then
+
+    MODEL_INPUT=${18:-''} # DART
+    INPUT_PROJ='+proj=utm +zone=18 +ellps=WGS84 +units=m +no_defs'
+
     # Optional Args (stereogrammetry testing)
-    crop=${18:-''}    #"0 190000 40000 40000"
-    tile_size=${19:-3000}
+    crop=${19:-''}    #"0 190000 40000 40000"
+    tile_size=${20:-3000}
+
     #sa=${19}	   #if sgm is true, then use 1 for sgm or 2 for mgm
     #cm=${20}      #cost mode for stereo
-    script_call+=" ${18} ${19}"
+    script_call+=" ${18} ${19} ${20}"
 fi
 
 echo; echo "Script call:"
@@ -204,7 +215,7 @@ echo "Count of right xmls: ${count_right}"
 echo "Count of left xmls: ${count_right}"
 if [ "$count_right" -lt "1" ] && [ "$count_left" -lt "1" ] ; then echo "Query did not return input. Exiting." ; exit 1 ; fi
 
-if [ ! -e "${out}-PC.tif" ] ; then
+if [ ! -e "${out}-PC.tif" ] && [[ -z "${MODEL_INPUT// }" ]] ; then
     echo; echo "Running wv_correct and dg_mosaic to create:"; echo "${in_left}"; echo "${in_right}"
     ntfmos.sh ${out_root}/${pairname}
     if [ ! -e ${in_left} ] && [ ! -e ${in_right} ] ; then echo "ntfmos.sh did not produce a left and right strip. Can't run stereogrammetry. Exiting." ; exit 1 ; fi
@@ -230,7 +241,12 @@ if [ "$MAP" = true ] ; then
 fi
 
 echo; echo "Determine output UTM prj, and native resolution ..."
-proj=$(utm_proj_select.py ${in_left_xml})
+if [[ -z "${MODEL_INPUT// }" ]] ; then
+    # if MODEL_INPUT variable is empty..
+    proj=$(utm_proj_select.py ${in_left_xml})
+else
+    proj=$INPUT_PROJ
+fi
 if [ -z "${proj}" ] ; then echo "utm_proj_select.py failed. Exiting." ; exit 1 ; fi
 
 echo "Projection: ${proj}"
@@ -262,7 +278,11 @@ else
 fi
 
 if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
-    stereo_opts+="-t dg"
+    if [[ -z "${MODEL_INPUT// }" ]] ; then
+        stereo_opts+="-t dg"
+    else
+        stereo_opts+="-t rpc"
+    fi
 
     #Map mosaiced input images using ASP mapproject
     if [ "$MAP" = true ] ; then
@@ -334,7 +354,12 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     fi
 
     # Done like this so, if present, rpcdem is last
-    stereo_args="${in_left%.*}${outext}.tif ${in_right%.*}${outext}.tif ${in_left%.*}${outext}.xml ${in_right%.*}${outext}.xml ${out} $stereo_args"
+    if [[ -z "${MODEL_INPUT// }" ]] ; then
+        stereo_args="${in_left%.*}${outext}.tif ${in_right%.*}${outext}.tif ${in_left%.*}${outext}.xml ${in_right%.*}${outext}.xml ${out} $stereo_args"
+    else
+        # No XMLs for MODEL DATA INPUT
+        stereo_args="${in_left%.*}${outext}.tif ${in_right%.*}${outext}.tif ${out}"
+    fi
 
     # Processing with 'parallel_stereo' needs these
     par_opts="--job-size-w $tile_size --job-size-h $tile_size"
