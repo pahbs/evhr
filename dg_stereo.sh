@@ -215,10 +215,13 @@ echo "Count of right xmls: ${count_right}"
 echo "Count of left xmls: ${count_right}"
 if [ "$count_right" -lt "1" ] && [ "$count_left" -lt "1" ] ; then echo "Query did not return input. Exiting." ; exit 1 ; fi
 
-if [ ! -e "${out}-PC.tif" ] && [[ -z "${MODEL_INPUT// }" ]] ; then
+if [[ ! -e "${out}-PC.tif" ]] && [[ -z "${MODEL_INPUT// }" ]] ; then
     echo; echo "Running wv_correct and dg_mosaic to create:"; echo "${in_left}"; echo "${in_right}"
     ntfmos.sh ${out_root}/${pairname}
-    if [ ! -e ${in_left} ] && [ ! -e ${in_right} ] ; then echo "ntfmos.sh did not produce a left and right strip. Can't run stereogrammetry. Exiting." ; exit 1 ; fi
+    if [ ! -e ${in_left} ] && [ ! -e ${in_right} ] ; then 
+        echo "ntfmos.sh did not produce a left and right strip. Can't run stereogrammetry. Exiting."
+        exit 1
+    fi
 fi
 
 if [ ! -e $in_left ] && [ ! -e ${in_left%.*}.xml ]; then
