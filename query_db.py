@@ -200,7 +200,8 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
         day = imageDate[6:8]
         date = year+month+day # don't know if I need this anymore but jic. string date
 
-        imageDate = datetime.strptime(imageDate,"%Y%m%d") # now imageDate is a datetime object #* do we even need this. when we pass to DISCOVER we convert to string anyways
+        # 3/9: Niger delta does not have dates in pairnames, doesn't appear that we need/use this anyway, so comment out for now
+        #imageDate = datetime.strptime(imageDate,"%Y%m%d") # now imageDate is a datetime object #* do we even need this. when we pass to DISCOVER we convert to string anyways
 
         # create variables that use pairname
         imageDir = os.path.join(batchDir, pairname) # where data will be copied to on ADAPT
