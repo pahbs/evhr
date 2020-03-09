@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# DEM Workflow: wv_correct, mosaic, mapproject, stereo, point2dem, hillshades, & orthoimages for individual stereopairs on DISCOVER & ADAPT
-# paul montesano, david shean, maggie wooten, christopher neigh
+# DEM Workflow: wv_correct, dg_mosaic, mapproject, stereo, point2dem, hillshades, & orthoimages for individual stereopairs on DISCOVER & ADAPT
+# paul montesano, david shean (original versions of workflow shell wrappers of ASP routines), maggie wooten, christopher neigh
 #
 # example of call on DISCOVER:
 #     dg_stereo.sh $pairname false
@@ -18,6 +18,12 @@
 #   warptool.py             performs warping and resampling of mutiple input
 #
 
+# NOTES on input data:
+# 	Must start with sensor code (eg, WV03) (ntfmos.sh looks for this)
+# 	Must have catIDs in name (dg_mosaic looks for catIDs)
+# 	Must use lower case for .xml and .ntf (dg_mosaic)
+# 	Must have P1BS in names
+
 t_start=$(date +%s)
 
 function gettag() {
@@ -28,13 +34,8 @@ function gettag() {
 host=`/bin/hostname -s`
 
 #Hardcoded Args (SGM testing) unless overridden in a TEST below
-tile_size=3500
-if [[ "$host" == *"crane"* ]] ; then
-    tile_size=4000
-fi
-if [[ "$host" == *"ecotone"* ]] || [[ "$host" == *"himat"* ]] ; then
-    tile_size=2000
-fi
+tile_size=4000
+
 # For writing to DASS
 DASS_dir='/att/pubrepo/DEM/hrsi_dsm/v2'    #requires write access from launch VM
 
@@ -68,15 +69,22 @@ PPRC=${17:-'false'}
 
 if [ "$ADAPT" = false ]; then
     TEST=false
+    tile_size=3000 # for DISCOVER nodes
 fi
+    
 script_call="${0} ${1} ${2} ${3} ${4} ${5} ${6} ${7} ${8} ${9} ${10} ${11} ${12} ${13} ${14} ${15} ${16} ${17}"
 if [ "$TEST" = true ]; then
+
+    MODEL_INPUT=${18:-''} # DART
+    INPUT_PROJ='+proj=utm +zone=18 +ellps=WGS84 +units=m +no_defs'
+
     # Optional Args (stereogrammetry testing)
-    crop=${18:-''}    #"0 190000 40000 40000"
-    tile_size=${19:-3000}
+    crop=${19:-''}    #"0 190000 40000 40000"
+    tile_size=${20:-3000}
+
     #sa=${19}	   #if sgm is true, then use 1 for sgm or 2 for mgm
     #cm=${20}      #cost mode for stereo
-    script_call+=" ${18} ${19}"
+    script_call+=" ${18} ${19} ${20}"
 fi
 
 echo; echo "Script call:"
@@ -122,7 +130,7 @@ if [[ "$host" == *"crane"* ]] ; then
     nlogical_cores_use=$((nlogical_cores - 1))
 fi
 if [[ "$host" == *"ecotone"* ]] || [[ "$host" == *"himat"* ]] ; then
-    nlogical_cores_use=$((nlogical_cores - 5))
+    nlogical_cores_use=$((nlogical_cores - 8))
 fi
 
 echo
@@ -182,7 +190,7 @@ out_ortho=${out_root}/${pairname}/${pairname}${ortho_ext}
 if [ ! -e $in_left ] || [ ! -e $in_right  ] ; then
     mkdir -p ${out_root}/${pairname}
     if [ ! -e ${out_ortho} ] ; then
-        #echo; echo "CHECK"; echo
+
         if [[ "$ADAPT" = "true" ]] && [[ "$QUERY" == "true" ]] ; then
             for catid in $left_catid $right_catid ; do
                 cmd=''                
@@ -207,10 +215,13 @@ echo "Count of right xmls: ${count_right}"
 echo "Count of left xmls: ${count_right}"
 if [ "$count_right" -lt "1" ] && [ "$count_left" -lt "1" ] ; then echo "Query did not return input. Exiting." ; exit 1 ; fi
 
-if [ ! -e "${out}-PC.tif" ] ; then
+if [[ ! -e "${out}-PC.tif" ]] && [[ -z "${MODEL_INPUT// }" ]] ; then
     echo; echo "Running wv_correct and dg_mosaic to create:"; echo "${in_left}"; echo "${in_right}"
     ntfmos.sh ${out_root}/${pairname}
-    if [ ! -e ${in_left} ] && [ ! -e ${in_right} ] ; then echo "ntfmos.sh did not produce a left and right strip. Can't run stereogrammetry. Exiting." ; exit 1 ; fi
+    if [ ! -e ${in_left} ] && [ ! -e ${in_right} ] ; then 
+        echo "ntfmos.sh did not produce a left and right strip. Can't run stereogrammetry. Exiting."
+        exit 1
+    fi
 fi
 
 if [ ! -e $in_left ] && [ ! -e ${in_left%.*}.xml ]; then
@@ -233,7 +244,12 @@ if [ "$MAP" = true ] ; then
 fi
 
 echo; echo "Determine output UTM prj, and native resolution ..."
-proj=$(utm_proj_select.py ${in_left_xml})
+if [[ -z "${MODEL_INPUT// }" ]] ; then
+    # if MODEL_INPUT variable is empty..
+    proj=$(utm_proj_select.py ${in_left_xml})
+else
+    proj=$INPUT_PROJ
+fi
 if [ -z "${proj}" ] ; then echo "utm_proj_select.py failed. Exiting." ; exit 1 ; fi
 
 echo "Projection: ${proj}"
@@ -265,11 +281,15 @@ else
 fi
 
 if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
-    stereo_opts+="-t dg"
+    if [[ -z "${MODEL_INPUT// }" ]] ; then
+        stereo_opts+="-t dg"
+    else
+        stereo_opts+="-t rpc"
+    fi
 
     #Map mosaiced input images using ASP mapproject
     if [ "$MAP" = true ] ; then
-        map_opts="--threads $ncpu -t rpc --nodata-value 0 --t_srs \"$proj_rpcdem\""
+        map_opts="--threads $((ncpu / 2)) -t rpc --nodata-value 0 --t_srs \"$proj_rpcdem\""
 
         if [[ -n $native_res ]]; then
             map_opts+=" --tr $native_res"
@@ -279,20 +299,28 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         echo $proj_rpcdem
         echo; echo "Computing intersection extent in projected coordinates:"
         map_extent=$(dg_stereo_int.py $in_left_xml $in_right_xml "$proj_rpcdem")
-        if [ -z $map_extent ] ; then
-            echo "dg_stereo_int.py failed. Exiting."
-            exit 1
-        fi
+        if [[ -z ${map_extent} ]] ; then echo "Failed to compute intersection extent: dg_stereo_int.py. Exiting." ; exit 1 ; fi
         echo $map_extent; echo
 
+        cmf_list=''
         for in_img in $in_left $in_right; do
-            ln -sv ${in_img%.tif}.xml ${in_img%.tif}${outext}.xml
+            ln -s ${in_img%.tif}.xml ${in_img%.tif}${outext}.xml
             map_arg="--t_projwin $map_extent $rpcdem ${in_img} ${in_img%.tif}${outext}.xml ${in_img%.tif}${outext}.tif"
             if [ ! -e ${in_img%.tif}${outext}.tif ]; then
                 date; echo mapproject $map_opts $map_arg
-                eval time mapproject $map_opts $map_arg
+                cmd="mapproject $map_opts $map_arg ;"
+                cmd_list+=\ \'$cmd\'
             fi
         done
+        if [[ ! -z $cmd_list ]] ; then
+            if (( $ncpu > 15 )) ; then
+                njobs=2
+            else
+                njobs=1
+            fi
+            echo; date; echo;
+            eval parallel --progress -verbose -j $njobs ::: $cmd_list
+        fi
         rpcdem_warp=${out_root}/${pairname}/$(basename ${rpcdem%.*})_warp.tif
         if [ ! -e ${in_img%.tif}${outext}.tif ] ; then echo "mapproject failed. Exiting." ; exit 1 ; fi
         if [ ! -e $rpcdem_warp ] ; then
@@ -329,7 +357,12 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     fi
 
     # Done like this so, if present, rpcdem is last
-    stereo_args="${in_left%.*}${outext}.tif ${in_right%.*}${outext}.tif ${in_left%.*}${outext}.xml ${in_right%.*}${outext}.xml ${out} $stereo_args"
+    if [[ -z "${MODEL_INPUT// }" ]] ; then
+        stereo_args="${in_left%.*}${outext}.tif ${in_right%.*}${outext}.tif ${in_left%.*}${outext}.xml ${in_right%.*}${outext}.xml ${out} $stereo_args"
+    else
+        # No XMLs for MODEL DATA INPUT
+        stereo_args="${in_left%.*}${outext}.tif ${in_right%.*}${outext}.tif ${out}"
+    fi
 
     # Processing with 'parallel_stereo' needs these
     par_opts="--job-size-w $tile_size --job-size-h $tile_size"
@@ -367,7 +400,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
 
         cmd_stereo="parallel_stereo -e $e $par_opts $sgm_opts $stereo_args"
         date ; echo $cmd_stereo ; echo
-        eval time $cmd_stereo
+        eval time $cmd_stereo ; date
     else
         echo; echo "Correllation (naive) with Normalized Cross Correlation (ncc)" ; echo
         stereo_opts+=" --subpixel-mode 2" #affine adaptive window, Bayes EM weighting
@@ -377,14 +410,14 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         if [ "$RUN_PSTEREO" = true ] ; then
             cmd_stereo="parallel_stereo -e $e $par_opts $stereo_opts $stereo_args"
             date ; echo $cmd_stereo ; echo
-            eval time $cmd_stereo
+            eval time $cmd_stereo ; date
 
             echo; echo "Removing intermediate logs..."
             rm ${out}-log-stereo_parse*.txt
         else
             cmd_stereo="stereo -e $e $stereo_opts $stereo_args"
             date ; echo $cmd_stereo ; echo
-            eval time $cmd_stereo
+            eval time $cmd_stereo ; date
         fi
     fi
 fi
@@ -396,7 +429,7 @@ if [ -e "${out}-PC.tif" ] &&
     echo; echo "Stereogrammetry failed to produce a VALID PC.tif file. Try again from -e 4."
     cmd_stereo=$(echo $cmd_stereo | sed 's/-e 0/-e 4/g')
     date ; echo $cmd_stereo ; echo
-    eval time $cmd_stereo
+    eval time $cmd_stereo ; date
 fi
 
 if [ ! -e "${out}-PC.tif" ] ; then
