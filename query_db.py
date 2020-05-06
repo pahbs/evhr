@@ -127,11 +127,12 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
     os.system('mkdir -p {}'.format(logdir))
     lfile = os.path.join(logdir, 'batch{}_ADAPT_query_log.txt'.format(batchID))
     print "Attempting to process {} pairs for batch {}. See log file for output:\n{}".format(nPairs, batchID, lfile)
+    """
     so = se = open(lfile, 'a', 0)                       # open our log file
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0) # re-open stdout without buffering
     os.dup2(so.fileno(), sys.stdout.fileno())           # redirect stdout and stderr to the log file opened above
     os.dup2(se.fileno(), sys.stderr.fileno())
-
+    """
 
     if debug: print "!!!!! DEBUG mode !!!!!\n\n"
     print "BATCH: {}".format(batchID)
