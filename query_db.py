@@ -232,6 +232,7 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
             # [4] Search ADAPT's NGA database for catID_1 and catid_2
             # Establish the database connection
             start_query = timer()
+            import pdb; pdb.set_trace()
             with psycopg2.connect(database="ngadb01", user="anon", host="ngadb01", port="5432") as dbConnect:
 
                 cur = dbConnect.cursor() # setup the cursor
