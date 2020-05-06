@@ -127,7 +127,7 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
     os.system('mkdir -p {}'.format(logdir))
     lfile = os.path.join(logdir, 'batch{}_ADAPT_query_log.txt'.format(batchID))
     print "Attempting to process {} pairs for batch {}. See log file for output:\n{}".format(nPairs, batchID, lfile)
-    """
+    """ TEMP 5/6 (uncomment)
     so = se = open(lfile, 'a', 0)                       # open our log file
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0) # re-open stdout without buffering
     os.dup2(so.fileno(), sys.stdout.fileno())           # redirect stdout and stderr to the log file opened above
@@ -233,10 +233,18 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
             # [4] Search ADAPT's NGA database for catID_1 and catid_2
             # Establish the database connection
             start_query = timer()
-            import pdb; pdb.set_trace()
             with psycopg2.connect(database="ngadb01", user="anon", host="ngadb01", port="5432") as dbConnect:
 
                 cur = dbConnect.cursor() # setup the cursor
+                
+                """ TEMP 5/6:"""
+                import pdb; pdb.set_trace()
+                cur.execute("Select * FROM nga_inventory_canon LIMIT 0")
+                colnames = [desc[0] for desc in cur.description]
+                print colnames
+                
+                
+                
                 catIDlist = ['XXXXXXX', 'XXXXXXX']
                 pIDlist = ['XXXXXXX', 'XXXXXXX']
                 found_catID = [False,False] # have not found it yet
