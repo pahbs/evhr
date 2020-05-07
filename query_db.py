@@ -127,12 +127,11 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
     os.system('mkdir -p {}'.format(logdir))
     lfile = os.path.join(logdir, 'batch{}_ADAPT_query_log.txt'.format(batchID))
     print "Attempting to process {} pairs for batch {}. See log file for output:\n{}".format(nPairs, batchID, lfile)
-    """ TEMP 5/6 (uncomment)
     so = se = open(lfile, 'a', 0)                       # open our log file
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0) # re-open stdout without buffering
     os.dup2(so.fileno(), sys.stdout.fileno())           # redirect stdout and stderr to the log file opened above
     os.dup2(se.fileno(), sys.stderr.fileno())
-    """
+
 
     if debug: print "!!!!! DEBUG mode !!!!!\n\n"
     print "BATCH: {}".format(batchID)
@@ -237,7 +236,7 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
 
                 cur = dbConnect.cursor() # setup the cursor
                 
-                """ TEMP 5/6: (figuring out which columns are in the db schema)
+                """ 5/6/20: (figuring out which columns are in the db schema)
                 cur.execute("Select * FROM nga_inventory_canon LIMIT 0")
                 colnames = [desc[0] for desc in cur.description]
                 """
@@ -338,7 +337,7 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
             #* at this point we know that we have data for at least one catID
             """
             Getting needed info from just the first rec in the returned table called 'selected' ##** now it's a list called selected_list
-            s_filepath, sensor, acq_time, cent_lat, cent_long
+            s_filepath, sensor, acq_time
             """
 
             #* getting the date here again. Do we need to do this?
