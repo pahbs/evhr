@@ -237,13 +237,10 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
 
                 cur = dbConnect.cursor() # setup the cursor
                 
-                """ TEMP 5/6:"""
-                import pdb; pdb.set_trace()
+                """ TEMP 5/6: (figuring out which columns are in the db schema)
                 cur.execute("Select * FROM nga_inventory_canon LIMIT 0")
                 colnames = [desc[0] for desc in cur.description]
-                print colnames
-                
-                
+                """
                 
                 catIDlist = ['XXXXXXX', 'XXXXXXX']
                 pIDlist = ['XXXXXXX', 'XXXXXXX']
@@ -256,11 +253,17 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
                 selected_list = [[],[]] ##** to store the list of lists (selected_list[0] will give list of scenes for catID 1, select_list[1] will give for catID2
 
                 for num, catID in enumerate([catID_1,catID_2]): #* loop thru catID of the pairs
-
-                   # selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM nga_files_footprint WHERE catalog_id = '%s'" %(catID)
-                    selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM nga_inventory_canon WHERE catalog_id = '{}' AND prod_code = 'P1BS'".format(catID) # 2/13 change nga_inventory_footprint to nga_inventory # 4/13 add AND prod_code so we only get Pan data
+                    
+                    # 2/13 change nga_inventory_footprint to nga_inventory 
+                    # 4/13 add AND prod_code so we only get Pan data
+                    #selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM nga_files_footprint WHERE catalog_id = '%s'" %(catID)
+                    # 5/7/2020: cetn_lat and cent_long are no longer included in the database schema
+                    #selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM nga_inventory_canon WHERE catalog_id = '{}' AND prod_code = 'P1BS'".format(catID) 
+                    selquery =  "SELECT s_filepath, sensor, acq_time FROM nga_inventory_canon WHERE catalog_id = '{}' AND prod_code = 'P1BS'".format(catID) 
+                    
                     preLogText.append( "\n  Now executing database query on catID '{}' ...".format(catID))
                     print "  Executing database query on catID '{}' ...".format(catID)
+                    
                     cur.execute(selquery)
                     """
                     'selected' will be a list of all raw scene matching the catid and their associated attributes that you asked for above
@@ -381,9 +384,10 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
                 print "  Copying data for catalog ID {}".format(catID) # print to ADAPT log
                 selected = selected_list[num] # retrieve list of scenes for catID
 
+                # 5/7/2020: cetn_lat and cent_long are no longer included in the database schema
                 # get lat long and path from first
-                lat= float(selected[0][3])
-                lon = float(selected[0][4])
+                #lat= float(selected[0][3])
+                #lon = float(selected[0][4])
                 path_0 = os.path.split(selected[0][0])[0]
 
                 preLogText.append("\n    NGA dB path: {}".format(path_0))
@@ -391,8 +395,8 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
                 pID = pIDlist[num]
 
                 preLogText.append("    Product ID: {}".format(pID))
-                preLogText.append("    Center Lat: {}".format(lat))
-                preLogText.append("    Center Lon: {}".format(lon))
+                #preLogText.append("    Center Lat: {}".format(lat))
+                #preLogText.append("    Center Lon: {}".format(lon))
 
                 """
                 [4.1] Make imageDir and COPY data from archive to ADAPT
