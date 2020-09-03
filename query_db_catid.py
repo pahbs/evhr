@@ -46,7 +46,8 @@ def main():
 
         cur = dbConnect.cursor() # setup the cursor
 
-        selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM %s WHERE catalog_id = '%s' AND prod_code = '%s'" %(db_table, catID, prod_code)
+        #selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM %s WHERE catalog_id = '%s' AND prod_code = '%s'" %(db_table, catID, prod_code)
+        selquery =  "SELECT S_FILEPATH, SENSOR, ACQ_TIME FROM %s WHERE CATALOG_ID = '%s' AND PROD_CODE = '%s'" %(db_table, catID, prod_code)
         
         print( "\n\t Now executing database query on catID '%s' ..."%catID)
         cur.execute(selquery)

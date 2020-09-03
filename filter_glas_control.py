@@ -21,6 +21,9 @@ import numpy as np
 from osgeo import gdal
 from pygeotools.lib import geolib, iolib, malib, timelib
 
+# https://stackoverflow.com/questions/35737116/runtimeerror-invalid-display-variable
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import dem_control
 
@@ -212,7 +215,7 @@ print("Check # cols of incoming qfilt set of GLAS", glas_pts.shape[1])
 
 for n,dem_fn in enumerate(dem_fn_list):
 
-    main_dir, pairname = os.path.split(os.path.split(dem_fn)[0])
+    main_dir, subdir = os.path.split(os.path.split(dem_fn)[0])
 
     print("%i of %i" % (n+1, len(dem_fn_list)))
     #Lat/lon extent filter
@@ -404,13 +407,13 @@ for n,dem_fn in enumerate(dem_fn_list):
             ax.yaxis.set_visible(False)
             ax.set_aspect('equal', 'box-forced')
 
-        title='%s \n %i quality-filtered ICESat-GLAS shots, %i for valid surfaces, %i for co-registration' % ( pairname + ' (' + os.path.split(dem_fn)[1] +')', pX_fltr.shape[0], pX_fltr_mask_valsurf.shape[0], pX_fltr_mask_coreg.shape[0])
+        title='%s \n %i quality-filtered ICESat-GLAS shots, %i for valid surfaces, %i for co-registration' % ( subdir + ' (' + os.path.split(dem_fn)[1] +')', pX_fltr.shape[0], pX_fltr_mask_valsurf.shape[0], pX_fltr_mask_coreg.shape[0])
         fig.suptitle(title)
         fig.tight_layout()
         #This adjusts subplots to fit suptitle
         plt.subplots_adjust(top=0.92)
         #fig_fn = os.path.splitext(out_csv_fn)[0]+'.png'
-        fig_fn = os.path.join(main_dir, pairname, pairname + "_" + os.path.splitext(os.path.split(out_csv_fn)[1])[0] +'.png')
+        fig_fn = os.path.join(main_dir, subdir, os.path.splitext(os.path.split(out_csv_fn)[1])[0] +'.png')  ##---> pairname + "_" + 
         print "Saving figure: %s" % fig_fn
         plt.savefig(fig_fn, dpi=300, bbox_inches='tight', pad_inches=0)
         plt.close(fig)

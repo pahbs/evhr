@@ -190,6 +190,7 @@ def main():
                 pathroot.append(root)
 
     print "\tIterating over raster list..."
+    print(ras_fn_list)
     for num, ras_fn in enumerate(ras_fn_list):
 
         # Clean up tmp files which may otherwise interfere with footprinting
@@ -273,7 +274,7 @@ def main():
                     field_attributes_list = [os.path.split(ras_fn)[1], os.path.split(ras_fn)[0]]
 
                     if DSM:
-                        #print "Adding 'pairname' field and attribute before getting DSM Info."
+                        print "\tGetting DSM Info..."
                         pairname_fieldname = ['PAIRNAME']
                         field_names_list += pairname_fieldname
                         pairname = os.path.split(os.path.split(ras_fn)[0])[1]

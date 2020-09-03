@@ -8,6 +8,7 @@ from osgeo import ogr, osr, gdal
 
 import datetime, time
 from datetime import datetime
+#from datetime import date
 #gdal.AllRegister() #register all raster format drivers
 
 # Function for calculating a 3x3 determinant
@@ -178,7 +179,9 @@ def main(imageDir):
             "EPHEMX_R,EPHEMY_R,EPHEMZ_R,"+\
             "ULLON_L,ULLAT_L,LLLON_L,LLLAT_L,URLON_L,URLAT_L,LRLON_L,LRLAT_L,"+\
             "ULLON_R,ULLAT_R,LLLON_R,LLLAT_R,URLON_R,URLAT_R,LRLON_R,LRLAT_R,"+\
-            "ANG_CON,ANG_BIE,ANG_ASY\n"
+            "ANG_CON,ANG_BIE,ANG_ASY\n" #,DATE_FT
+    
+    #DATE_FT = date.today.strftime("%Y%m%d")
 
     # Get pairname from input image dir
     baseDir, pairname = os.path.split(imageDir)
@@ -195,7 +198,8 @@ def main(imageDir):
     for root, dirs, files in os.walk(imageDir):
         for each in files:
             # Identify only xmls belonging to scenes
-            if each.endswith('.xml') and 'P1BS' in each:
+            #if each.endswith('.xml') and 'P1BS' in each:
+            if each.endswith('.xml'):
                 if cat1 in each:
                     cat1list.append(each)
                 if cat2 in each:
@@ -227,9 +231,10 @@ def main(imageDir):
                 maxLat,minLat,maxLon,minLon,centLat,centLon = (0 for i in range(30))
 
                 catIDs, genDateCols, genTimeCols, SSGangles, ephemeris, centCoords, cornerCoords = ('' for i in range(7))
-
+                
                 # Loop through XML files
                 for file in (file1,file2):
+                    print(file)
                     # Keep track of file
                     i += 1
                     # Read  XML line by line
@@ -359,9 +364,9 @@ def main(imageDir):
                 #--TMP NO CSV--csvfile.write(out_attribute_line)
 
                 #--TMP NO CSV--print("\tOuput CSV file: %s" %(outCSV))
-                print("\tConvergence Angle          = " + str(stereoAngs[0]))
-                print("\tBisector Elevation Angle   = " + str(stereoAngs[1]))
-                print("\tAsymmetry Angle            = " + str(stereoAngs[2]))
+                print("\t\tConvergence Angle          = " + str(stereoAngs[0]))
+                print("\t\tBisector Elevation Angle   = " + str(stereoAngs[1]))
+                print("\t\tAsymmetry Angle            = " + str(stereoAngs[2]))
 
                 return(str(stereoAngs[0]), str(stereoAngs[1]), str(stereoAngs[2]), hdr, out_attribute_line)
 

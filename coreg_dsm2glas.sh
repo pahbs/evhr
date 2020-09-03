@@ -15,9 +15,9 @@ script_name=$(basename ${0})
 pairname=${1}
 main_dir=${2:-''}
 dem_file=${3:-'out-DEM_1m.tif'}
-glas=${4:-'/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/data/glas/circ_boreal/gla01-boreal50up-data.csv'}
-ref_dem=${5:-'/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/data/tandemx/TDM90/mos/TDM1_90m_circ_DEM.vrt'}
 
+glas=${4:-'/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/data/glas/circ_boreal/gla01-boreal50up-data.csv'}
+ref_dem='/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/data/tandemx/TDM90/mos/TDM1_90m_circ_DEM.vrt'
 elev_range="-15 15"
 test_dir='/att/gpfsfs/briskfs01/ppl/pmontesa/tmp/test2'
 
@@ -30,12 +30,12 @@ mkdir -p $workdir
 dem=$workdir/${dem_file}
 
 #Pubrepo files needed: out-DEM_*.tif, *.xml; Need to needed files to NOBACKUP
-ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/*ortho*tif $main_dir/$pairname
+ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/*ortho*tif $test_dir/$pairname
 xml_fn_list=$(ls /att/pubrepo/DEM/hrsi_dsm/$pairname/*.xml)
-ln -sf $xml_fn_list $main_dir/$pairname
-ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/out-DEM*m.tif $main_dir/$pairname
+ln -sf $xml_fn_list $test_dir/$pairname
+ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/out-DEM*m.tif $test_dir/$pairname
 if [ $main_dir = $test_dir ] ; then
-    ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/out-DEM*m*hs*.tif $main_dir/$pairname
+    ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/out-DEM*m*hs*.tif $test_dir/$pairname
 fi
 
 mkdir -p $main_dir/logs_coreg2glas
