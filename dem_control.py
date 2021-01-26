@@ -116,7 +116,7 @@ def get_min_gaus(ras_fn, sample_step=50, ncomp=3):
     if masked_array is None:
         mean_min = 0
         stdev = 0
-        print "No shift will be done. Masked array is None. Setting mean and stdv to 0."
+        print("No shift will be done. Masked array is None. Setting mean and stdv to 0.")
     else:
 
         # Do gaussian fitting
@@ -136,15 +136,15 @@ def get_min_gaus(ras_fn, sample_step=50, ncomp=3):
             #matplotlib.pyplot.axis([min(masked_array.compressed()),max(masked_array.compressed()),0,1])
             gauss_num = 'Gaussian peak #%s' %(i)
 
-            print 'Gaussian peak #%s (mean, stdv):  %s, %s' %(i, round(m,3), round(np.sqrt(c),3))
+            print("Gaussian peak #%s (mean, stdv):  %s, %s" %(i, round(m,3), round(np.sqrt(c),3)) )
 
             out_means.append(m)
             out_stdevs.append(np.sqrt(c))
 
         matplotlib.pyplot.savefig(os.path.join(os.path.dirname(ras_fn),fig_name))
         matplotlib.pyplot.clf()
-        print "Saved histogram fig:"
-        print os.path.join(os.path.dirname(ras_fn),fig_name)
+        print("Saved histogram fig:")
+        print(os.path.join(os.path.dirname(ras_fn),fig_name) )
 
         # Find min
         mean_min = min(out_means)
@@ -192,7 +192,7 @@ def sample_ma(array, sampleStep, min_val=-99):
     #print 'Array dims: ' + str(nrow) + " , " + str(ncol)
 
     # [start:stop:step]
-    print 'Sampling the rows, cols with sample step: %s' %(sampleStep)
+    print("Sampling the rows, cols with sample step: %s" %(sampleStep) )
 
     masked_array = masked_array[0::sampleStep,0::sampleStep]
     sz = masked_array.size
@@ -207,7 +207,7 @@ def force_symlink(file1, file2):
     import errno
     try:
         os.symlink(file1, file2)
-    except OSError, e:
+    except OSError as e:
         if e.errno == errno.EEXIST:
             os.remove(file2)
             os.symlink(file1, file2)
@@ -239,8 +239,8 @@ def getparser():
     #parser.set_defaults(slopemaskcoarse=True)
     parser.add_argument('--no-auto_min_toa', dest='auto_min_toa', action='store_false', help='Turn off auto-compute min TOA using gaussian mixture model')
     parser.set_defaults(auto_min_toa=True)
-    parser.add_argument('-lidar_fn', type=str, default=None, help='Path to the LiDAR dataset to be used to mask for ground(CHM or %Canopy) (default: %(default)s)')
-    parser.add_argument('-max_thresh', type=float, default=None, help='Max Value of LiDAR dateset to be considered a ground pixel (e.g. 0.8m or 20 (%)) (default: %(default)s)')
+    parser.add_argument('-lidar_fn', type=str, default=None, help='Path to the LiDAR dataset to be used to mask for ground(CHM or %%Canopy) (default: %(default)s)')
+    parser.add_argument('-max_thresh', type=float, default=None, help='Max Value of LiDAR dateset to be considered a ground pixel (e.g. 0.8m or 20 (%%)) (default: %(default)s)')
 
     return parser
 
@@ -429,8 +429,8 @@ def main():
                 out_fn=out_fn_base+'_lidarmask.tif'
                 print("Writing out %s\n" % out_fn)
                 iolib.writeGTiff(lidarmask, out_fn, src_ds=dem_ds)
-        except Exception, e:
-            print "\tFailed to Apply Lidar Mask"
+        except Exception as e:
+            print("\tFailed to Apply Lidar Mask")
 
     # CHM mask will be a subset of the Control mask; slope_mask, toa_mask, toa_tri_mask
     chmmask = controlmask
