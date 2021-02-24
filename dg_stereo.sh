@@ -67,24 +67,34 @@ QUERY=${16:-'true'}
 # Only preprocess
 PPRC=${17:-'false'}
 
+# DART simulation?
+MODEL_INPUT=${18:-'false'}
+
+# PC Filtering (stereo_fltr) uses defaults, turned off (0) in TEST
+filter_mode=1
+
 if [ "$ADAPT" = false ]; then
     TEST=false
     tile_size=3000 # for DISCOVER nodes
 fi
     
-script_call="${0} ${1} ${2} ${3} ${4} ${5} ${6} ${7} ${8} ${9} ${10} ${11} ${12} ${13} ${14} ${15} ${16} ${17}"
+script_call="${0} ${1} ${2} ${3} ${4} ${5} ${6} ${7} ${8} ${9} ${10} ${11} ${12} ${13} ${14} ${15} ${16} ${17} ${18}"
 if [ "$TEST" = true ]; then
 
-    MODEL_INPUT=${18:-''} # DART
-    INPUT_PROJ='+proj=utm +zone=18 +ellps=WGS84 +units=m +no_defs'
+    echo; echo "TEST is TRUE"; echo
 
     # Optional Args (stereogrammetry testing)
     crop=${19:-''}    #"0 190000 40000 40000"
-    tile_size=${20:-3000}
+    tile_size=${20:-'4000'}
+    filter_mode=${21:-'0'}
 
-    #sa=${19}	   #if sgm is true, then use 1 for sgm or 2 for mgm
-    #cm=${20}      #cost mode for stereo
-    script_call+=" ${18} ${19} ${20}"
+    echo; echo "Adding optional args for testing" ; echo "${19}" ; echo "${20}" ; echo "${21}"
+    script_call+=" ${19} ${20} ${21}"
+
+    #sa=${22}	   #if sgm is true, then use 1 for sgm or 2 for mgm
+    #cm=${23}      #cost mode for stereo
+
+
 fi
 
 echo; echo "Script call:"
@@ -105,7 +115,7 @@ left_catid="$(echo $pairname | awk -F '_' '{print $3}')"
 right_catid="$(echo $pairname | awk -F '_' '{print $4}')"
 
 if [ -z "$SGM" ]; then
-	SGM=false
+    SGM=false
 fi
 
 # Get # of THREADs (aka siblings aka logical cores) per CORE
@@ -158,10 +168,10 @@ stereo_args=''
 sgm_opts=''
 
 if [ -e ${out}-strip-PC.tif ]; then
-	mv ${out}-strip-PC.tif ${out}-PC.tif
+    mv ${out}-strip-PC.tif ${out}-PC.tif
 fi
 if [ -e ${out}-strip-DEM.tif ]; then
-	mv ${out}-strip-DEM.tif ${out}-DEM_native.tif
+    mv ${out}-strip-DEM.tif ${out}-DEM_native.tif
 fi
 
 #Set entry point based on contents of outdir
@@ -215,7 +225,9 @@ echo "Count of right xmls: ${count_right}"
 echo "Count of left xmls: ${count_right}"
 if [ "$count_right" -lt "1" ] && [ "$count_left" -lt "1" ] ; then echo "Query did not return input. Exiting." ; exit 1 ; fi
 
-if [[ ! -e "${out}-PC.tif" ]] && [[ -z "${MODEL_INPUT// }" ]] ; then
+#if [[ ! -e "${out}-PC.tif" ]] && [[ -z "${MODEL_INPUT// }" ]] ; then
+
+if [[ ! -e "${out}-PC.tif" ]] && [ "$MODEL_INPUT" = false ] ; then
     echo; echo "Running wv_correct and dg_mosaic to create:"; echo "${in_left}"; echo "${in_right}"
     ntfmos.sh ${out_root}/${pairname}
     if [ ! -e ${in_left} ] && [ ! -e ${in_right} ] ; then 
@@ -244,11 +256,12 @@ if [ "$MAP" = true ] ; then
 fi
 
 echo; echo "Determine output UTM prj, and native resolution ..."
-if [[ -z "${MODEL_INPUT// }" ]] ; then
-    # if MODEL_INPUT variable is empty..
+
+if [ "$MODEL_INPUT" = false ] ; then
     proj=$(utm_proj_select.py ${in_left_xml})
 else
-    proj=$INPUT_PROJ
+    # For DART, get proj from the tif
+    proj=$(utm_proj_select.py ${in_left})
 fi
 if [ -z "${proj}" ] ; then echo "utm_proj_select.py failed. Exiting." ; exit 1 ; fi
 
@@ -281,7 +294,8 @@ else
 fi
 
 if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
-    if [[ -z "${MODEL_INPUT// }" ]] ; then
+    #if [[ -z "${MODEL_INPUT// }" ]] ; then
+    if [ "$MODEL_INPUT" = false ] ; then
         stereo_opts+="-t dg"
     else
         stereo_opts+="-t rpc"
@@ -297,15 +311,25 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         fi
         echo; echo "Projection used for initial alignment of stereopairs:"
         echo $proj_rpcdem
+
         echo; echo "Computing intersection extent in projected coordinates:"
         map_extent=$(dg_stereo_int.py $in_left_xml $in_right_xml "$proj_rpcdem")
         if [[ -z ${map_extent} ]] ; then echo "Failed to compute intersection extent: dg_stereo_int.py. Exiting." ; exit 1 ; fi
         echo $map_extent; echo
 
+        # The below wont wok because the formatting of $crop is for stereo (xoff yoff xsize ysize), and mapproject wants something different (xmin ymin xmax ymax)
+        #if [ ! -z "$crop" ]; then
+        #    echo ; echo "Output a cropped set of mapprojected input to this pixel window (xmin ymin xmax ymax): ${crop}" ; echo "...could result in no overlap if too small.." ; echo  
+        #    map_opts+=" --t_pixelwin $crop"
+        #else
+            echo ; echo "Output full extent of mapprojected input." ; echo ; echo
+            map_opts+=" --t_projwin $map_extent"
+        #fi
+
         cmf_list=''
         for in_img in $in_left $in_right; do
             ln -s ${in_img%.tif}.xml ${in_img%.tif}${outext}.xml
-            map_arg="--t_projwin $map_extent $rpcdem ${in_img} ${in_img%.tif}${outext}.xml ${in_img%.tif}${outext}.tif"
+            map_arg="$rpcdem ${in_img} ${in_img%.tif}${outext}.xml ${in_img%.tif}${outext}.tif"
             if [ ! -e ${in_img%.tif}${outext}.tif ]; then
                 date; echo mapproject $map_opts $map_arg
                 cmd="mapproject $map_opts $map_arg ;"
@@ -340,7 +364,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         outext=""
         stereo_opts+=" --alignment-method AffineEpipolar"
     fi
-
+    stereo_opts+=" --filter-mode $filter_mode"
     stereo_opts+=" --subpixel-kernel $subpix_kern $subpix_kern"
     stereo_opts+=" --erode-max-size $erode_max_size"
     stereo_opts+=" --corr-kernel $corr_kern $corr_kern"
@@ -357,10 +381,11 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     fi
 
     # Done like this so, if present, rpcdem is last
-    if [[ -z "${MODEL_INPUT// }" ]] ; then
+    #if [[ -z "${MODEL_INPUT// }" ]] ; then
+    if [ "$MODEL_INPUT" = false ] ; then
         stereo_args="${in_left%.*}${outext}.tif ${in_right%.*}${outext}.tif ${in_left%.*}${outext}.xml ${in_right%.*}${outext}.xml ${out} $stereo_args"
     else
-        # No XMLs for MODEL DATA INPUT
+        # No XMLs for DART MODEL DATA INPUT
         stereo_args="${in_left%.*}${outext}.tif ${in_right%.*}${outext}.tif ${out}"
     fi
 
@@ -374,7 +399,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
     fi
     echo; echo "Point-Cloud Generation (stereogrammetry)..." ; echo
 
-    if [ "$RUN_PSTEREO" = true ] && [ "$SGM" = true ] ; then
+    if [ "$SGM" = true ] ; then
         if [ ! -z "$sa" ]; then
             echo ; echo "Correllation with stereo-algorithm = ${sa}"; echo
             sgm_opts+=" --stereo-algorithm $sa"
@@ -390,7 +415,8 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         #sgm_opts+=" --corr-memory-limit-mb 8000"    #this * ncpu < total VM RAM (borg nodes: 28 cpu; 132 GB RAM
         sgm_opts+=" --corr-tile-size $tile_size"
         sgm_opts+=" --xcorr-threshold -1"
-        sgm_opts+=" --subpixel-mode 0"
+        #sgm_opts+=" --subpixel-mode 0"   #None
+        sgm_opts+=" --subpixel-mode 2"   #"Bayes EM" ;  Changed 2/2021 from default of 0; ASP 2.6 recognizes 0 as "not set", instead of "None", and defaults to 1 "Parabala" 
         sgm_opts+=" --median-filter-size 3"
         sgm_opts+=" --texture-smooth-size 7"
         sgm_opts+=" --texture-smooth-scale 0.13"
@@ -398,16 +424,24 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         #sgm_opts+=" --verbose"
         sgm_opts+=" $stereo_opts"
 
-        cmd_stereo="parallel_stereo -e $e $par_opts $sgm_opts $stereo_args"
+        if [ "$RUN_PSTEREO" = true ] ; then
+            echo; echo "Running SGM in parallel..." ; echo
+            cmd_stereo="parallel_stereo -e $e $par_opts $sgm_opts $stereo_args"
+        else
+            cmd_stereo="stereo -e $e $sgm_opts $stereo_args"
+        fi
+
         date ; echo $cmd_stereo ; echo
         eval time $cmd_stereo ; date
     else
         echo; echo "Correllation (naive) with Normalized Cross Correlation (ncc)" ; echo
+        stereo_opts+=" --stereo-algorithm 0" # Integer (naive) correllation
         stereo_opts+=" --subpixel-mode 2" #affine adaptive window, Bayes EM weighting
         stereo_opts+=" --filter-mode 1"   #discard pixels for which % of neighbor disps are outliers (inliers: w/in rm-threshold=3 of current disp; thresh % must > rm-min-matches=60%)
         stereo_opts+=" --cost-mode 2"     # norm cross corr
 
         if [ "$RUN_PSTEREO" = true ] ; then
+            echo; echo "Running SGM in parallel..." ; echo
             cmd_stereo="parallel_stereo -e $e $par_opts $stereo_opts $stereo_args"
             date ; echo $cmd_stereo ; echo
             eval time $cmd_stereo ; date
