@@ -194,14 +194,14 @@ def run_asp(
 
 
 ##    # try to close the out/err files-- http://stackoverflow.com/questions/7955138/addressing-sys-excepthook-error-in-bash-script
-##    try:
-##        sys.stdout.close()
-##    except:
-##        pass
-##    try:
-##        sys.stderr.close()
-##    except:
-##        pass
+    try:
+        sys.stdout.close()
+    except:
+        pass
+    try:
+        sys.stderr.close()
+    except:
+        pass
 
 
 if __name__ == "__main__":
