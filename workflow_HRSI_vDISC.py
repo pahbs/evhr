@@ -1,8 +1,7 @@
+#!/usr/bin/env python
+
 # 9/18/2018: adding the four dg_stereo arguments (subpixKern, erodeSize, corrKern, corrTime) to the command line in query to be received here. these will be passed to dg_stereo along with other hardcoded vars
 
-
-
-#!/usr/local/other/SLES11.3/miniconda/4.0.5/gcc-5.3-sp3/bin/python
 ###############################################
 # Import and function definitions
 import os, sys, osgeo, time, glob, platform, subprocess as subp
