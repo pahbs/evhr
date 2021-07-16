@@ -8,6 +8,13 @@
 # Copyright:   (c) mwooten3 2016
 # Licence:     <your licence>
 
+# 5/13/2021: Editing script to resume DISCOVER processing with new SLES12. Changes:
+#            - DONE: a few edits to slurm .j file writing
+#            - TO DO: edits to postgres connection with database
+#            - TO DO: edits in preparation of new db schema ??
+
+# 5/7/2020: Removed references to cent_lat and lon as they were removed from db schema
+
 
 # 9/18/2018: adding the four dg_stereo arguments (subpixKern, erodeSize, corrKern, corrTime) to the command line. these will be passed to workflow with python_script_args
 
@@ -21,6 +28,9 @@
 #   - No longer ASPdir and outDir, just ddir: /att/gpfsfs/briskfs01/ppl/mwooten3/Paul_TTE/DSMs/; which will still be separated by batch ON DISCOVER (not ADAPT)
 #   - getting rid of mapprj stuff
 #   - getting rid of imageDate stuff since it will always be in yyyymmdd in the pairname
+
+# 7/15/2021: Updating for new DB access
+#   - DB does not (currently) have access in crane or gumby nodes
 
 #-------------------------------------------------------------------------------
 import os, sys, math, shutil, time, glob, platform, csv, subprocess as subp # edited for ADAPT (no gdalinfo- do we need it?)
@@ -89,6 +99,11 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
     test = False # set test to True if we want to run a test, which will not skip the pair if it's already in the hrsi_dsms directory on pubrepo
 
     start_main = timer() # start timer object for entire batch
+    
+    # 7/15/2021: Get DB password from file
+    dbPassTxt = '/att/gpfsfs/home/mwooten3/arcdb04_password.txt'
+    with open(dbPassTxt, 'r') as ot:
+        dbPass = ot.read().strip()
 
     baseDir = os.path.dirname(ASPdir.rstrip('/'))
     # ASPdir is (/att/nobackup/mwooten3/AIST/TTE/ASP)
@@ -232,8 +247,10 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
             # [4] Search ADAPT's NGA database for catID_1 and catid_2
             # Establish the database connection
             start_query = timer()
-            with psycopg2.connect(database="ngadb01", user="anon", host="ngadb01", port="5432") as dbConnect:
-
+            #with psycopg2.connect(database="ngadb01", user="anon", host="ngadb01", port="5432") as dbConnect:
+            # 7/15/2021: New DB
+            with psycopg2.connect(database="arcgis", user="mwooten3", 
+                    password=dbPass, host="arcdb04", port="5432") as dbConnect:
                 cur = dbConnect.cursor() # setup the cursor
                 
                 """ 5/6/20: (figuring out which columns are in the db schema)
@@ -256,9 +273,13 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
                     # 2/13 change nga_inventory_footprint to nga_inventory 
                     # 4/13 add AND prod_code so we only get Pan data
                     #selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM nga_files_footprint WHERE catalog_id = '%s'" %(catID)
+                    
                     # 5/7/2020: cetn_lat and cent_long are no longer included in the database schema
                     #selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM nga_inventory_canon WHERE catalog_id = '{}' AND prod_code = 'P1BS'".format(catID) 
-                    selquery =  "SELECT s_filepath, sensor, acq_time FROM nga_inventory_canon WHERE catalog_id = '{}' AND prod_code = 'P1BS'".format(catID) 
+                    #selquery =  "SELECT s_filepath, sensor, acq_time FROM nga_inventory_canon WHERE catalog_id = '{}' AND prod_code = 'P1BS'".format(catID) 
+                    
+                    # 7/15/2021: New table name
+                    selquery =  "SELECT s_filepath, sensor, acq_time FROM nga_footprint_master_v2 WHERE catalog_id = '{}' AND prod_code = 'P1BS'".format(catID) 
                     
                     preLogText.append( "\n  Now executing database query on catID '{}' ...".format(catID))
                     print "  Executing database query on catID '{}' ...".format(catID)
@@ -504,27 +525,29 @@ def main(inTxt, ASPdir, batchID, jobID, alwaysCopyPair, SGM, subpixKern, erodeSi
             #print python_script_args #T
 
             # slurm.j file (calls the python code in discover for just one pair)
+            # 5/13/2021: New slurm .j set up (edits have ** next to)
             with open(job_script, 'wb') as f:
                 f.write('#!/bin/bash -f\n\n')
                 f.write('#SBATCH --job-name={}\n'.format(job_name))
                 f.write('#SBATCH --nodes={}\n'.format(num_nodes))
-                f.write('#SBATCH --constraint=hasw\n\n')
+                f.write('#SBATCH --constraint=hasw|sky\n\n') #** skylake or old haswell nodes
 
                 f.write('#SBATCH --time={}\n'.format(time_limit))
                 f.write('#SBATCH --account={}\n'.format(jobID))
                 f.write('#SBATCH --partition=single\n')
                 f.write('#SBATCH --qos=boreal_b0217\n\n')
 
-                f.write('source /usr/share/modules/init/bash\n\n')
-                f.write('module load other/asp/2.6.0-2018-03-06\n\n')
-                #f.write('ulimit -a\n\n') # prob dont need. keep for now
-
-                f.write('export PATH=/discover/nobackup/projects/boreal_nga/code/evhr:${PATH}\n')
-                f.write('export PATH=/discover/nobackup/projects/boreal_nga/code/dgtools/dgtools:${PATH}\n')
-                f.write('export PATH=/discover/nobackup/projects/boreal_nga/code/imview/imview:${PATH}\n')
-                f.write('export PATH=/discover/nobackup/projects/boreal_nga/code/pygeotools/pygeotools:${PATH}\n\n')
-
-                f.write('export PYTHONPATH=/discover/nobackup/projects/boreal_nga/code/evhr:/discover/nobackup/projects/boreal_nga/code/dgtools:/discover/nobackup/projects/boreal_nga/code/pygeotools:/discover/nobackup/projects/boreal_nga/code/imview\n\n')
+                f.write('source /usr/share/modules/init/bash\n')
+                f.write('source /discover/nobackup/projects/boreal_nga/set_my_env.sh\n\n') #**
+                
+                # ** no longer doing this block. most of it happens with the above line now
+                #f.write('module load other/asp/2.6.0-2018-03-06\n\n')
+                #f.write('export PATH=/discover/nobackup/projects/boreal_nga/code/evhr:${PATH}\n')
+                #f.write('export PATH=/discover/nobackup/projects/boreal_nga/code/dgtools/dgtools:${PATH}\n')
+                #f.write('export PATH=/discover/nobackup/projects/boreal_nga/code/imview/imview:${PATH}\n')
+                #f.write('export PATH=/discover/nobackup/projects/boreal_nga/code/pygeotools/pygeotools:${PATH}\n\n')
+                #f.write('ulimit -a\n\n') # prob dont need?
+                #f.write('export PYTHONPATH=/discover/nobackup/projects/boreal_nga/code/evhr:/discover/nobackup/projects/boreal_nga/code/dgtools:/discover/nobackup/projects/boreal_nga/code/pygeotools:/discover/nobackup/projects/boreal_nga/code/imview\n\n')
 
                 f.write('{}\n'.format(python_script_args))
 
