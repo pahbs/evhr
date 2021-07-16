@@ -39,7 +39,7 @@ from datetime import datetime
 from timeit import default_timer as timer
 from time import gmtime, strftime
 #gdal.AllRegister() #register all raster format drivers
-import workflow_functions as wf
+#import workflow_functions as wf
 import psycopg2
 #import LLtoUTM as convert
 import get_stereopairs_v3 as g
