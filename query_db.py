@@ -42,7 +42,7 @@ from time import gmtime, strftime
 #import workflow_functions as wf
 import psycopg2
 #import LLtoUTM as convert
-import get_stereopairs_v3 as g
+#import get_stereopairs_v3 as g
 #import shapefile
 #from distutils.util import strtobool
 
