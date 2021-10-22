@@ -5,8 +5,11 @@
 
 #Input directory containing DG Ids
 dir=$1
+outdir=${2:-$dir}
+echo; echo "Output dir for TOA image: ${outdir}"; echo
 res=4
 cd $dir
+echo "Dir: $dir"
 
 #Use the image closest to nadir
 #This should work for directories containing one or two IDs
@@ -27,8 +30,8 @@ echo "Image: $img"
 #fi
 #img=${img%.*}_${res}m.tif
 
-if [ -e ${img%.*}_toa.tif ] ; then
-    echo "Found existing toa image: ${img%.*}_toa.tif"
+if [ -e ${outdir}/${img%.*}_toa.tif ] ; then
+    echo "Found existing toa image: ${outdir}/${img%.*}_toa.tif"
     exit
 fi
 
@@ -60,7 +63,7 @@ c=$(toa.py $xml $band | tail -n 1)
 
 echo "Generating new TOA image using scaling factor $c"
 #For 30 m image, don't need 20 threads
-image_calc --output-nodata-value 0 -d float32 -c "$c*var_0" $img -o ${img%.*}_toa.tif
+image_calc --output-nodata-value 0 -d float32 -c "$c*var_0" $img -o ${outdir}/${img%.*}_toa.tif
 
 #If doing fullres, could scale by 1000, then output uint16
 #minval=1

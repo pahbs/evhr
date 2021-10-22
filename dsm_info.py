@@ -180,6 +180,7 @@ def main(imageDir):
             "ULLON_L,ULLAT_L,LLLON_L,LLLAT_L,URLON_L,URLAT_L,LRLON_L,LRLAT_L,"+\
             "ULLON_R,ULLAT_R,LLLON_R,LLLAT_R,URLON_R,URLAT_R,LRLON_R,LRLAT_R,"+\
             "ANG_CON,ANG_BIE,ANG_ASY\n" #,DATE_FT
+			####"CLDCOV_L","CLDCOV_R",+\    # ToDo, include CLOUDCOVER from left and right image
     
     #DATE_FT = date.today.strftime("%Y%m%d")
 
@@ -208,11 +209,6 @@ def main(imageDir):
     # Name output csv with the pairname and put in output ASP dir
     outCSV = os.path.join(imageDir, "{}.csv".format(pairname))
 
-    #--TMP NO CSV--#Open a CSV for writing
-    #--TMP NO CSV--with open(outCSV,'wb') as csvfile:
-
-        #--TMP NO CSV--# Write the header
-        #--TMP NO CSV--#csvfile.write(hdr)
     #--TMP NO CSV--<INDENT EVERYTHING BELOW>
     # Get all combos of scenes from each catid strip:
     for leftXML in cat1list:

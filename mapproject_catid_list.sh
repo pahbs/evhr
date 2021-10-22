@@ -41,10 +41,14 @@ if [ "$ADAPT" = true ] ; then
         
         cd ${main_dir}/${catid}
         if [ ! -e ${main_dir}/${catid}/${catid}_ortho_rpc.tif ] ; then
-            # ---FOR NOW -- only correct and mosaic P1BS data
-            #ntfmos.sh ${main_dir}/${catid}
-
-            mapproject_fill.py ${main_dir}/${catid}/${catid}.r100.tif $rpcdem
+            
+            echo "Running ntfmos.sh to apply wv_correct to scenes, and the mosaic scenes into strips for input into mapproject."
+            ntfmos.sh ${main_dir}/${catid}
+            
+            echo "Running mapproject to ortho input strip."
+            cmd=$(mapproject_fill.py ${main_dir}/${catid}/${catid}.r100.tif $rpcdem)
+            echo $cmd
+            eval $cmd
         fi
         gdaladdo -ro -r average ${main_dir}/${catid}/${catid}_ortho_rpc.tif 2 4 8 16 32 64
     done

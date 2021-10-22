@@ -29,7 +29,7 @@ def main(argv=None):
         if ext == '.xml':
             try:
                 from dgtools.lib import dglib
-            except Exception, e:
+            except Exception as e:
                 import dglib
             geom = dglib.xml2geom(fn)
         #Want to be better about handling arbitrary gdal formats here

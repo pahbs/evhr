@@ -334,7 +334,7 @@ for n,dem_fn in enumerate(dem_fn_list):
     dz = z_fltr_mask_coreg - coreg_samp[coreg_samp_idx,0]
 
     if True:
-        print "Creating plot of %i output points" % x_fltr.shape[0]
+        print("Creating plot of %i output points" % x_fltr.shape[0] )
         fig_kw = {'figsize':(10,7.5)}
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, sharex=True, sharey=True, **fig_kw)
 
@@ -414,6 +414,6 @@ for n,dem_fn in enumerate(dem_fn_list):
         plt.subplots_adjust(top=0.92)
         #fig_fn = os.path.splitext(out_csv_fn)[0]+'.png'
         fig_fn = os.path.join(main_dir, subdir, os.path.splitext(os.path.split(out_csv_fn)[1])[0] +'.png')  ##---> pairname + "_" + 
-        print "Saving figure: %s" % fig_fn
+        print("Saving figure: %s" % fig_fn )
         plt.savefig(fig_fn, dpi=300, bbox_inches='tight', pad_inches=0)
         plt.close(fig)

@@ -7,7 +7,7 @@
 # - Filtering GLAS over the control surfaces
 # - PC aligning input DEM with filtered GLAS
 
-source ~/anaconda3/bin/activate py2 #For Paul
+source ~/anaconda3/bin/activate sibbork_pyproj #py2 #For Paul
 #source ~/miniconda2/bin/activate py2 #My code
 
 hostN=`/bin/hostname -s`
@@ -21,6 +21,8 @@ ref_dem='/att/gpfsfs/briskfs01/ppl/pmontesa/userfs02/data/tandemx/TDM90/mos/TDM1
 elev_range="-15 15"
 test_dir='/att/gpfsfs/briskfs01/ppl/pmontesa/tmp/test2'
 
+HRSI_DSM_DIR='/att/gpfsfs/atrepo01/hrsi_dsm/v2'
+
 if [ -z $main_dir ] ; then
     main_dir=$test_dir
 fi
@@ -30,18 +32,21 @@ mkdir -p $workdir
 dem=$workdir/${dem_file}
 
 #Pubrepo files needed: out-DEM_*.tif, *.xml; Need to needed files to NOBACKUP
-ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/*ortho*tif $test_dir/$pairname
-xml_fn_list=$(ls /att/pubrepo/DEM/hrsi_dsm/$pairname/*.xml)
+
+xml_fn_list=$(ls ${HRSI_DSM_DIR}/$pairname/*.xml)
 ln -sf $xml_fn_list $test_dir/$pairname
-ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/out-DEM*m.tif $test_dir/$pairname
-if [ $main_dir = $test_dir ] ; then
-    ln -sf /att/pubrepo/DEM/hrsi_dsm/$pairname/out-DEM*m*hs*.tif $test_dir/$pairname
-fi
+
+for f in `ls ${HRSI_DSM_DIR}/$pairname/*{out-DEM_,ortho}*` ; do
+    ln -svf $f $test_dir/$pairname 
+    ln -svf $f $main_dir/$pairname 
+done
+
 
 mkdir -p $main_dir/logs_coreg2glas
 logfile=$main_dir/logs_coreg2glas/${script_name%.*}_${hostN}_${pairname}.log
 
 echo; echo "Script call:" | tee $logfile
+echo '---------'
 echo "${script_name} ${1} ${2} ${3}"| tee -a $logfile
 echo "Main dir: $main_dir" | tee -a $logfile
 
