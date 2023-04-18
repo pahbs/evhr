@@ -24,6 +24,11 @@
 # 	Must use lower case for .xml and .ntf (dg_mosaic)
 # 	Must have P1BS in names
 
+# Load modules
+#module load StereoPipeline/3.0.0-2021-10-12
+#module load anaconda/3-2022.05
+#conda activate sibbork_batu
+
 t_start=$(date +%s)
 
 function gettag() {
@@ -79,6 +84,7 @@ if [ "$ADAPT" = false ]; then
 fi
     
 script_call="${0} ${1} ${2} ${3} ${4} ${5} ${6} ${7} ${8} ${9} ${10} ${11} ${12} ${13} ${14} ${15} ${16} ${17} ${18}"
+
 if [ "$TEST" = true ]; then
 
     echo; echo "TEST is TRUE"; echo
@@ -204,7 +210,7 @@ if [ ! -e $in_left ] || [ ! -e $in_right  ] ; then
         if [[ "$ADAPT" = "true" ]] && [[ "$QUERY" == "true" ]] ; then
             for catid in $left_catid $right_catid ; do
                 cmd=''                
-                cmd+="time query_db_catid.py $catid -out_dir ${out_root}/${pairname} ; "
+                cmd+="time /home/pmontesa/code/evhr/query_db_catid.py $catid -out_dir ${out_root}/${pairname} ; "
                 echo; echo "Querying ngadb, getting the symlinks to data for catid ${catid}"
                 echo $cmd
                 cmd_list+=\ \'$cmd\'
@@ -251,7 +257,8 @@ fi
 # Get proj from XML
 if [ "$MAP" = true ] ; then
     echo; echo "Determine RPCDEM prj used to mapproject input prior to stereo ..."
-    proj_rpcdem=$(proj_select.py ${rpcdem})
+    #proj_rpcdem=$(proj_select.py ${rpcdem})
+    proj_rpcdem=$(proj_select_vrt.py ${rpcdem}) # Update to handle VRT
     if [ -z "${proj_rpcdem}" ] ; then echo "proj_select.py failed. Exiting." ; exit 1 ; fi
 fi
 
@@ -416,7 +423,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         sgm_opts+=" --corr-tile-size $tile_size"
         sgm_opts+=" --xcorr-threshold -1"
         #sgm_opts+=" --subpixel-mode 0"   #None
-        sgm_opts+=" --subpixel-mode 2"   #"Bayes EM" ;  Changed 2/2021 from default of 0; ASP 2.6 recognizes 0 as "not set", instead of "None", and defaults to 1 "Parabala" 
+        sgm_opts+=" --subpixel-mode 7"   #7="SGM None" Changed 7/2021 after speed tests with NigerDelta pairs; 2="Bayes EM" Changed 2/2021 from default of 0; ASP 2.6 recognizes 0 as "not set", instead of "None", and defaults to 1 "Parabala" 
         sgm_opts+=" --median-filter-size 3"
         sgm_opts+=" --texture-smooth-size 7"
         sgm_opts+=" --texture-smooth-scale 0.13"
