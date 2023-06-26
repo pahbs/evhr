@@ -39,7 +39,7 @@ function gettag() {
 host=`/bin/hostname -s`
 
 #Hardcoded Args (SGM testing) unless overridden in a TEST below
-tile_size=4000
+tile_size=3000
 
 # For writing to DASS
 DASS_dir='/att/pubrepo/DEM/hrsi_dsm/v2'    #requires write access from launch VM
@@ -91,7 +91,7 @@ if [ "$TEST" = true ]; then
 
     # Optional Args (stereogrammetry testing)
     crop=${19:-''}    #"0 190000 40000 40000"
-    tile_size=${20:-'4000'}
+    tile_size=${20:-'3000'}
     filter_mode=${21:-'0'}
 
     echo; echo "Adding optional args for testing" ; echo "${19}" ; echo "${20}" ; echo "${21}"
@@ -139,11 +139,11 @@ nlogical_cores=$((nthread_core * ncore_cpu * ncpu ))
 # Tough to run SGM on big tiles (~4000?) while using all logical cores (mem-related fails)
 nlogical_cores_use=$nlogical_cores
 
-if [[ "$host" == *"borg"* ]] ; then
-    nlogical_cores_use=$((nlogical_cores - 12))
+if [[ "$host" == *"ilab"* ]] ; then
+    nlogical_cores_use=$((nlogical_cores - 2))
 fi
-if [[ "$host" == *"crane"* ]] ; then
-    nlogical_cores_use=$((nlogical_cores - 1))
+if [[ "$host" == *"forest"* ]] ; then
+    nlogical_cores_use=$((nlogical_cores - 2))
 fi
 if [[ "$host" == *"ecotone"* ]] || [[ "$host" == *"himat"* ]] ; then
     nlogical_cores_use=$((nlogical_cores - 8))
@@ -259,7 +259,7 @@ if [ "$MAP" = true ] ; then
     echo; echo "Determine RPCDEM prj used to mapproject input prior to stereo ..."
     #proj_rpcdem=$(proj_select.py ${rpcdem})
     proj_rpcdem=$(proj_select_vrt.py ${rpcdem}) # Update to handle VRT
-    if [ -z "${proj_rpcdem}" ] ; then echo "proj_select.py failed. Exiting." ; exit 1 ; fi
+    if [ -z "${proj_rpcdem}" ] ; then echo "proj_select_vrt.py failed. Exiting." ; exit 1 ; fi
 fi
 
 echo; echo "Determine output UTM prj, and native resolution ..."
@@ -357,7 +357,11 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         if [ ! -e $rpcdem_warp ] ; then
             echo; echo "Clip the rpcdem with the mapprojected extent..."; echo
             warptool.py -tr 'last' -te 'first' ${in_img%.tif}${outext}.tif $rpcdem -outdir ${out_root}/${pairname}
-            if [ ! -e $rpcdem_warp ] ; then echo "warptool failed. Exiting." ; exit 1 ; fi
+            if [ ! -e $rpcdem_warp ] ; then
+                echo "warptool failed on first attempt. Trying again with -tr 90." 
+                warptool.py -tr 90 -te 'first' ${in_img%.tif}${outext}.tif $rpcdem -outdir ${out_root}/${pairname}
+            fi
+            if [ ! -e $rpcdem_warp ] ; then echo "warptool failed again.... Exiting." ; exit 1 ; fi
         fi
         # Rename rpcdem to the clipped file
         rpcdem=$rpcdem_warp
@@ -423,7 +427,9 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         sgm_opts+=" --corr-tile-size $tile_size"
         sgm_opts+=" --xcorr-threshold -1"
         #sgm_opts+=" --subpixel-mode 0"   #None
-        sgm_opts+=" --subpixel-mode 7"   #7="SGM None" Changed 7/2021 after speed tests with NigerDelta pairs; 2="Bayes EM" Changed 2/2021 from default of 0; ASP 2.6 recognizes 0 as "not set", instead of "None", and defaults to 1 "Parabala" 
+        # Note - DO NOT CHOOSE 'None (7)' for SGM - use (8-12; not a huge diff) for fast interp between integer results
+        # 11 is SGM (Parabola)
+        sgm_opts+=" --subpixel-mode 11"   #7="SGM None" Changed 7/2021 after speed tests with NigerDelta pairs; 2="Bayes EM" Changed 2/2021 from default of 0; ASP 2.6 recognizes 0 as "not set", instead of "None", and defaults to 1 "Parabola" 
         sgm_opts+=" --median-filter-size 3"
         sgm_opts+=" --texture-smooth-size 7"
         sgm_opts+=" --texture-smooth-scale 0.13"
@@ -441,10 +447,10 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
         date ; echo $cmd_stereo ; echo
         eval time $cmd_stereo ; date
     else
-        echo; echo "Correllation (naive) with Normalized Cross Correlation (ncc)" ; echo
+        echo; echo "Block correllation (naive) with Normalized Cross Correlation (ncc)" ; echo
         stereo_opts+=" --stereo-algorithm 0" # Integer (naive) correllation
         stereo_opts+=" --subpixel-mode 2" #affine adaptive window, Bayes EM weighting
-        stereo_opts+=" --filter-mode 1"   #discard pixels for which % of neighbor disps are outliers (inliers: w/in rm-threshold=3 of current disp; thresh % must > rm-min-matches=60%)
+        #stereo_opts+=" --filter-mode 1"   #discard pixels for which % of neighbor disps are outliers (inliers: w/in rm-threshold=3 of current disp; thresh % must > rm-min-matches=60%)
         stereo_opts+=" --cost-mode 2"     # norm cross corr
 
         if [ "$RUN_PSTEREO" = true ] ; then
@@ -457,7 +463,7 @@ if [ "$e" -lt "5" ] && [ -e $in_left ] && [ -e $in_right ] ; then
             rm ${out}-log-stereo_parse*.txt
         else
             cmd_stereo="stereo -e $e $stereo_opts $stereo_args"
-            date ; echo $cmd_stereo ; echo
+            date ; echo ${cmd_stereo} ; echo
             eval time $cmd_stereo ; date
         fi
     fi
