@@ -30,6 +30,75 @@ def query_db_catid_test(catID, prod_code='M1BS', out_dir='/explore/nobackup/peop
 
     return selected
 
+def query_db_catid_v2(catID: str, prod_code: str, out_dir: str, out_csv_fn: str, username: str, password: str, db_table='nga_footprint_master_V2', symlink=True):
+    """
+    Returns to stdout the ADAPT dir that has the imagery associated with the input catID
+    If out_dir specified, copies all images and xmls associated with catid into out_dir as symbolic links
+    """
+    
+    if out_csv_fn is not None:
+        f = open( out_csv_fn, 'w')
+    
+    # Search ADAPT's NGA database for catID
+    imglist=[]
+
+    #with psycopg2.connect(database="ngadb01", user="anon", host="ngadb01", port="5432") as dbConnect:
+    with psycopg2.connect(database="arcgis", user=username, password=password, host="arcdb04", port="5432") as dbConnect:
+
+        cur = dbConnect.cursor() # setup the cursor
+
+        #selquery =  "SELECT s_filepath, sensor, acq_time, cent_lat, cent_long FROM %s WHERE catalog_id = '%s' AND prod_code = '%s'" %(db_table, catID, prod_code)
+        selquery =  "SELECT S_FILEPATH, SENSOR, ACQ_TIME FROM %s WHERE CATALOG_ID = '%s' AND PROD_CODE = '%s'" %(db_table, catID, prod_code)
+        
+        print( "\n\t Now executing database query on catID '%s' ..."%catID)
+        cur.execute(selquery)
+        selected=cur.fetchall()
+        print( "\n\t Found '%s' scenes for catID '%s' \n"%(len(selected),catID))
+
+        if len(selected) == 0:
+            print('Exiting.')
+            os._exit(1)
+
+        if not os.path.exists(out_dir): 
+             os.makedirs(out_dir)
+
+        # This will only get the data that match the first prod_id, preventing replicated data from being copied. This should prevent mosaics from failing
+        prod_id_list = list(set([ selected[i][0].split('-')[-1].split('_')[0] for i in range(0,len(selected)) ]))
+        print( "\t List of all prod_id '%s'" %(prod_id_list)) 
+        prod_id = prod_id_list[0]
+        print( "\t Selecting data associated with prod_id '%s'" %(prod_id))
+                                 
+        if symlink:
+            print(f'\t Making symlinks in output dir: {out_dir}')
+
+        for i in range(0,len(selected)):
+
+            if prod_id in selected[i][0]:
+                imglist.extend(selected[i][0])
+
+                # Copy selection ntf and xml to out_dir as symlinks
+                filename = os.path.split(selected[i][0])[1]
+                print(selected[i][0])
+                                 
+                # Write selection to CSV
+                if out_csv_fn is not None:
+                    f.write(selected[i][0]+'\n')
+
+                if symlink:
+                    force_symlink( selected[i][0], os.path.join(out_dir, filename) )
+                    try:
+                        # shutil.Error: ... are the same file
+                        # Just copy over the xmls, instead of creating a symlink to them
+                        shutil.copy2(os.path.splitext(selected[i][0])[0]+'.xml', out_dir)
+                    except Exception as e:
+                        force_symlink( os.path.splitext(selected[i][0])[0]+'.xml', os.path.join(out_dir, os.path.splitext(filename)[0]+'.xml') )
+        
+        # Print to stdout the dir from first record selected
+        #print(os.path.split(selected[0][0])[0])
+
+    if out_csv_fn is not None:
+        f.close()
+
 def query_db_catid(catID: str, prod_code: str, out_dir: str, out_csv_fn: str, username: str, password: str, db_table='nga_footprint_master_V2', symlink=True):
     """
     Returns to stdout the ADAPT dir that has the imagery associated with the input catID
@@ -78,8 +147,6 @@ def query_db_catid(catID: str, prod_code: str, out_dir: str, out_csv_fn: str, us
                     filename = os.path.split(selected[i][0])[1]
                     print(selected[i][0])
 
-                    if out_csv_fn is not None:
-                        f.write(selected[i][0]+'\n')
                     force_symlink( selected[i][0], os.path.join(out_dir, filename) )
 
                     try:
@@ -92,6 +159,11 @@ def query_db_catid(catID: str, prod_code: str, out_dir: str, out_csv_fn: str, us
 
             # Print to stdout the dir from first record selected
             print(os.path.split(selected[0][0])[0])
+            
+            # Write CSV
+            if out_csv_fn is not None:
+                for i in range(0,len(selected)):
+                    f.write(selected[i][0]+'\n')
 
     if out_csv_fn is not None:
         f.close()
